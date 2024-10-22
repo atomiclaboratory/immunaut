@@ -46,7 +46,7 @@ devtools::check(project_dir)
 # devtools::use_readme_rmd()  # Use an R Markdown file as the README
 
 # Install the package locally for testing or deployment.
-devtools::install(project_dir)
+devtools::install(project_dir, upgrade = "never")
 
 # Render README to ensure it is up to date before releasing the package
 # Convert the README.Rmd file into a README.md file, making sure the documentation is current.

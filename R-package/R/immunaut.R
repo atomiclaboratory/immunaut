@@ -233,6 +233,41 @@ immunaut <- function(dataset, settings = list()){
         settings$categoricalVariables <- FALSE
     }
 
+    settings$fileHeader$remapped = as.character(settings$fileHeader$remapped)
+    settings$fileHeader$original = as.character(settings$fileHeader$original)
+
+
+    if(!is.null(settings$groupingVariables)){
+        settings$groupingVariables <- settings$fileHeader %>% filter(remapped %in% settings$groupingVariables)
+        settings$groupingVariables <- settings$groupingVariables$remapped
+    }
+
+    # If no columns are selected, select by cut of size
+    if(is_null(settings$selectedColumns)) {
+        selectedColumns <- settings$fileHeader %>% arrange(unique_count) %>% arrange(position) %>% select(remapped)
+        settings$selectedColumns <- tail(selectedColumns$remapped, n=settings$cutOffColumnSize)
+    }
+
+    # Remove grouping variables from selectedColumns and excludedColumns
+    if(!is_null(settings$groupingVariables)) {
+        if(is_null(settings$selectedColumns)) {
+            settings$selectedColumns <-  setdiff(settings$selectedColumns, settings$groupingVariables)
+        }
+        if(is_null(settings$excludedColumns)) {
+            settings$excludedColumns <-  setdiff(settings$excludedColumns, settings$groupingVariables)
+        }
+        if(is_null(settings$colorVariables)) {
+            settings$colorVariables <-  setdiff(settings$colorVariables, settings$groupingVariables)
+        }
+    }
+
+    # Remove any excluded columns from selected columns
+    if(!is_null(settings$excludedColumns)) {
+        ## Remove excluded from selected columns
+        settings$selectedColumns <-  setdiff(settings$selectedColumns, settings$excludedColumns)
+        # settings$selectedColumns <- settings$selectedColumns[settings$selectedColumns %!in% settings$excludedColumns]
+    }
+    
 
 	# 0. Remove any undefined columns from initial dataset
 	dataset_filtered <- dataset[, names(dataset) %in% c(settings$selectedColumns, settings$groupingVariables)]
@@ -281,25 +316,32 @@ immunaut <- function(dataset, settings = list()){
     print(paste0("===> Clustering using", settings$clusterType))
     set.seed(1337)
     if(settings$clusterType == "Louvain"){
-       clust_plot_tsne <- cluster_tsne_knn_louvain(tsne_calc$info.norm, tsne_calc$tsne.norm, settings)
+       tsne_clust <- cluster_tsne_knn_louvain(tsne_calc$info.norm, tsne_calc$tsne.norm, settings)
     }else if(settings$clusterType == "Hierarchical"){
-       clust_plot_tsne <- cluster_tsne_hierarchical(tsne_calc$info.norm, tsne_calc$tsne.norm, settings)
+       tsne_clust <- cluster_tsne_hierarchical(tsne_calc$info.norm, tsne_calc$tsne.norm, settings)
     }else if(settings$clusterType == "Mclust"){
-       clust_plot_tsne <- cluster_tsne_mclust(tsne_calc$info.norm, tsne_calc$tsne.norm, settings)
+       tsne_clust <- cluster_tsne_mclust(tsne_calc$info.norm, tsne_calc$tsne.norm, settings)
     }else if(settings$clusterType == "Density"){
-       clust_plot_tsne <- cluster_tsne_density(tsne_calc$info.norm, tsne_calc$tsne.norm, settings)
+       tsne_clust <- cluster_tsne_density(tsne_calc$info.norm, tsne_calc$tsne.norm, settings)
     }else{
-       clust_plot_tsne <- cluster_tsne_knn_louvain(tsne_calc$info.norm, tsne_calc$tsne.norm, settings)
+       tsne_clust <- cluster_tsne_knn_louvain(tsne_calc$info.norm, tsne_calc$tsne.norm, settings)
     }
 
 
 
-    ## Get clusters from clust_plot_tsne$info.norm[["cluster"]] and add it to original dataset in "dataset" variable
+    ## Get clusters from tsne_clust$info.norm[["pandora_cluster"]] and add it to original dataset in "dataset" variable
     dastaset_with_clusters <- dataset
-    if(nrow(dastaset_with_clusters) == nrow(clust_plot_tsne$info.norm)){
-        dastaset_with_clusters$cluster <- clust_plot_tsne$info.norm$cluster
+    if(nrow(dastaset_with_clusters) == nrow(tsne_clust$info.norm)){
+        dastaset_with_clusters$pandora_cluster <- tsne_clust$info.norm$pandora_cluster
     }
 
+    results <- list(
+        tsne_calc = tsne_calc,
+        tsne_clust = tsne_clust,
+        settings = settings,
+        dastaset_with_clusters = dastaset_with_clusters,
+        num_samples = nrow(dastaset_with_clusters)
+    )
 
-    return(dastaset_with_clusters)
+    return(results)
 }

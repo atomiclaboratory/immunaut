@@ -50,11 +50,20 @@ calculate_tsne <- function(dataset, settings, removeGroups = TRUE){
 
     info.norm <- dataset
 
-    # Remap column names if necessary
-    if (!is.null(settings$fileHeader)) {
-        names(info.norm) <- plyr::mapvalues(names(info.norm), from = settings$fileHeader$remapped, to = settings$fileHeader$original)
-        message("===> Remapped column names based on settings")
-    }
+	# Remap column names if necessary
+	if (!is.null(settings$fileHeader)) {
+	    existing_columns <- intersect(names(info.norm), settings$fileHeader$remapped)  # Columns present in both
+	    if (length(existing_columns) > 0) {
+	        map_from <- settings$fileHeader$remapped[settings$fileHeader$remapped %in% existing_columns]
+	        map_to <- settings$fileHeader$original[settings$fileHeader$remapped %in% existing_columns]
+	        
+	        names(info.norm) <- plyr::mapvalues(names(info.norm), from = map_from, to = map_to)
+	        message("===> Remapped column names based on settings")
+	    } else {
+	        message("===> No matching columns to remap")
+	    }
+	}
+
 
     # Optionally remove grouping variables
     if (!is.null(settings$groupingVariables) && removeGroups == TRUE) {
@@ -63,6 +72,7 @@ calculate_tsne <- function(dataset, settings, removeGroups = TRUE){
     }
 
     # Keep only numeric columns
+    message(paste0("===> INFO: Keep only numeric columns"))
     tsne_data <- dataset %>% select(where(is.numeric))
 
     # Ensure there are numeric columns to process
@@ -71,7 +81,8 @@ calculate_tsne <- function(dataset, settings, removeGroups = TRUE){
     }
 
     # Remove zero variance columns
-    tsne_data <- tsne_data %>% select(where(~ var(.) != 0))
+    message(paste0("===> INFO: Remove zero variance columns"))
+    tsne_data <- tsne_data %>% select(where(~ var(., na.rm = TRUE) != 0))
     if (ncol(tsne_data) < 1) {
         stop("Not enough variable numeric columns to perform t-SNE.")
     }
@@ -89,23 +100,24 @@ calculate_tsne <- function(dataset, settings, removeGroups = TRUE){
         stop("Not enough data to perform t-SNE (minimum 4 samples required).")
     }
 
+    message(paste0("===> INFO: Perform PCA to calculate initial_dims"))
     # Perform PCA to calculate initial_dims
     pca_result <- prcomp(tsne_data, scale. = TRUE)
     explained_variance <- cumsum(pca_result$sdev^2) / sum(pca_result$sdev^2)
     initial_dims <- ifelse(any(explained_variance <= 0.9), max(which(explained_variance <= 0.9)), 1)
     initial_dims <- min(max(initial_dims, 1), ncol(tsne_data), 100)
 
-    message(paste0("Using initial_dims: ", initial_dims))
+    message(paste0("===> INFO: Using initial_dims: ", initial_dims))
 
     # Adjust perplexity dynamically if not provided
     if (!is.null(settings$perplexity) && settings$perplexity > 0) {
         perplexity <- settings$perplexity
-        message(paste0("Using provided perplexity: ", perplexity))
+        message(paste0("===> INFO: Using provided perplexity: ", perplexity))
     } else {
         max_perplexity <- floor((num_samples - 1) / 3)
         if (max_perplexity < 1) stop("Not enough data to compute perplexity.")
         perplexity <- min(30, max_perplexity)
-        message(paste0("Using dynamic perplexity: ", perplexity))
+        message(paste0("===> INFO: Using dynamic perplexity: ", perplexity))
     }
 
     header_mapped <- settings$fileHeader %>% filter(remapped %in% names(tsne_data))
@@ -166,10 +178,10 @@ calculate_tsne <- function(dataset, settings, removeGroups = TRUE){
         }
     }
 
-    message(paste0("Using max_iter: ", max_iter))
-    message(paste0("Using theta: ", theta))
-    message(paste0("Using eta: ", eta))
-    message(paste0("Using exaggeration_factor: ", exaggeration_factor))
+    message(paste0("===> INFO: Using max_iter: ", max_iter))
+    message(paste0("===> INFO: Using theta: ", theta))
+    message(paste0("===> INFO: Using eta: ", eta))
+    message(paste0("===> INFO: Using exaggeration_factor: ", exaggeration_factor))
 
     tsne.norm <- Rtsne::Rtsne(
         as.matrix(tsne_data),

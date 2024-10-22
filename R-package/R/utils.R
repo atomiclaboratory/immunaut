@@ -245,9 +245,9 @@ is_var_empty <- function(variable, variable_name = NULL){
     }
 
     # Optionally print variable name
-    if (!is.null(variable_name)) {
-        print(paste0("=====> INFO: Variable '", variable_name, "' is_empty: ", is_empty))
-    }
+    # if (!is.null(variable_name)) {
+    #     print(paste0("=====> INFO: Variable '", variable_name, "' is_empty: ", is_empty))
+    # }
     
     return(is_empty)
 }
@@ -338,6 +338,71 @@ find_optimal_resolution <- function(graph, start_resolution = 0.1, end_resolutio
         # Increment resolution by 0.1 for the next iteration
         res <- res + 0.1
     }
-    
+
+    message(paste0("====> Optimal resolution: ", optimal_resolution, " with modularity: ", best_modularity, " and clusters: ", best_clusters))
+
     return(list(optimal_resolution = optimal_resolution, best_modularity = best_modularity, best_clusters = best_clusters))
+}
+
+#' Generate a Demo Dataset for Machine Learning
+#'
+#' This function generates a demo dataset with a specified number of subjects and features, 
+#' which can be used to test machine learning algorithms such as t-SNE or clustering methods. 
+#' The generated dataset includes demographic information (`outcome`, `age`, and `gender`), 
+#' as well as numeric features with a specified probability of missing values.
+#'
+#' @param n_subjects Integer. The number of subjects (rows) to generate. Defaults to 1000.
+#' @param n_features Integer. The number of features (columns) to generate. Defaults to 200.
+#' @param missing_prob Numeric. The probability of introducing missing values (NA) in the feature columns. Defaults to 0.1.
+#'
+#' @return A data frame containing the generated demo dataset, with columns:
+#' - `outcome`: A categorical variable with values "low" or "high".
+#' - `age`: A numeric variable representing the age of the subject (range 18-90).
+#' - `gender`: A categorical variable with values "male" or "female".
+#' - `Feature X`: Numeric feature columns with random values and some missing data.
+#'
+#' @details
+#' The function randomly generates data for the `outcome`, `age`, and `gender` columns. 
+#' It then creates `n_features` numeric columns, introducing missing values in each 
+#' feature column with the specified probability (`missing_prob`).
+#'
+#' @examples
+#' \dontrun{
+#' # Generate a demo dataset with 1000 subjects and 200 features
+#' demo_data <- generate_demo_data(n_subjects = 1000, n_features = 200, missing_prob = 0.1)
+#' 
+#' # View the first few rows of the dataset
+#' head(demo_data)
+#' }
+#'
+#' @export
+generate_demo_data <- function(n_subjects = 1000, n_features = 200, missing_prob = 0.1) {
+  # Set seed for reproducibility
+  set.seed(1337)
+  
+  # Define potential values for categorical variables
+  outcomes <- c("low", "high")
+  genders <- c("male", "female")
+  
+  # Generate demographic columns
+  outcome <- sample(outcomes, n_subjects, replace = TRUE)
+  age <- sample(18:90, n_subjects, replace = TRUE)
+  gender <- sample(genders, n_subjects, replace = TRUE)
+  
+  # Generate feature columns with random values and introduce missing values
+  feature_data <- replicate(n_features, {
+    feature_values <- sample(c(NA, sample(0:100, 10, replace = TRUE)), n_subjects, replace = TRUE)
+    feature_values[sample(seq_len(n_subjects), size = floor(missing_prob * n_subjects))] <- NA
+    return(feature_values)
+  })
+  
+  # Name the features
+  feature_names <- paste0("Feature ", seq_len(n_features))
+  feature_data <- as.data.frame(feature_data)
+  colnames(feature_data) <- feature_names
+  
+  # Combine all into a data frame
+  demo_data <- data.frame(outcome = outcome, age = age, gender = gender, feature_data)
+  
+  return(demo_data)
 }

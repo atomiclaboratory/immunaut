@@ -18,7 +18,7 @@ knitr::opts_chunk$set(
   out.width = "100%"
 )
 ```
-R package designed to facilitate machine learning analysis with multi-dimensional datasets. The codebase provides functions to perform dimensionality reduction, hierarchical clustering, and predictive modeling. Within this framework, users can use high-dimensional data, perform t-distributed stochastic neighbor embedding (t-SNE) for effective visualization and exploration, and then carry out hierarchical clustering to identify latent data structures. This analysis chain can then be extended by further appending the data with cluster results, allowing for the construction of machine learning models with specific outcomes. The package is well-suited for exploratory data analysis, enabling users to uncover patterns, dynamics, and structures within their complex datasets.
+Immunaut is an R package designed to facilitate machine learning analysis with multi-dimensional datasets. The codebase provides functions to perform dimensionality reduction, hierarchical clustering, and predictive modeling. Within this framework, users can use high-dimensional data, perform t-distributed stochastic neighbor embedding (t-SNE) for effective visualization and exploration, and then carry out hierarchical clustering to identify latent data structures. This analysis chain can then be extended by further appending the data with cluster results, allowing for the construction of machine learning models with specific outcomes. 
 
 ## Installation
 
@@ -38,23 +38,28 @@ devtools::install_github("atomiclaboratory/immunaut", subdir = 'R-package')
 ```{r example-setup, eval = TRUE}
 library("immunaut")
 
-# Load example dataset from immunaut
-data("immunautDemo")
+dataset <- generate_demo_data(n_subjects = 1000, n_features = 200, missing_prob = 0.1)
 
 # Generate file header from the demo data
-file_header <- generate_file_header(immunautDemo)
+file_header <- generate_file_header(dataset)
 
 # Define settings for t-SNE and clustering
 settings <- list(
   fileHeader = file_header,
-  selectedColumns = colnames(immunautDemo),
+  selectedColumns = colnames(dataset),
+  
+  excludedColumns = c("outcome", "age", "gender"),
+  preProcessDataset = c("scale", "center", "medianImpute"),
+  
+  clusterType = "Louvain",  # Clustering method
+  knn_clusters = 50,        # Number of neighbors for KNN in Louvain clustering
+  
   pointSize = 2,           # Size of points in plots
   fontSize = 12,           # Font size for plots
-  colorPalette = "RdPu",   # Color palette for plots
-  perplexity = 30,         # t-SNE perplexity
-  max_iter = 1000,         # t-SNE maximum iterations
-  eta = 200                # Learning rate for t-SNE
+  colorPalette = "RdPu"   # Color palette for plots
 )
+
+result <- immunaut(dataset, settings)
 
 
 ```
@@ -66,10 +71,9 @@ settings$clusterType <- "Louvain"
 settings$knn_clusters <- 50         # Number of neighbors for KNN in Louvain clustering
 
 # Perform t-SNE and Louvain clustering
-result <- immunaut(immunautDemo, settings)
+result <- immunaut(dataset, settings)
 
-# Display the first few rows of the result
-head(result)
+
 
 ```
 
