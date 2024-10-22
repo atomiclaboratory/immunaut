@@ -2,20 +2,49 @@
 % Please edit documentation in R/functions.R
 \name{calculate_tsne}
 \alias{calculate_tsne}
-\title{Calculate t-SNE}
+\title{Perform t-Distributed Stochastic Neighbor Embedding (t-SNE)}
 \usage{
 calculate_tsne(dataset, settings, removeGroups = TRUE)
 }
 \arguments{
-\item{dataset}{The dataset to perform the analysis on.}
+\item{dataset}{A data frame or matrix containing the dataset to be processed. Must contain numeric columns.}
 
-\item{settings}{A list of settings for the analysis.}
+\item{settings}{A list of settings for t-SNE, which may include \code{fileHeader}, \code{groupingVariables}, \code{perplexity},
+\code{max_iter}, \code{eta}, \code{theta}, \code{exaggeration_factor}, and \code{preProcessDataset}.}
 
-\item{removeGroups}{If TRUE, removes the grouping variables from the dataset.}
+\item{removeGroups}{Logical, indicating whether to remove grouping variables before performing t-SNE. Default is TRUE.}
 }
 \value{
-A list containing the analyzed data, t-SNE results and column headers.
+A list containing:
+\itemize{
+\item \code{info.norm}: The dataset with the t-SNE coordinates (\code{tsne1}, \code{tsne2}) added.
+\item \code{tsne.norm}: The output from the \code{Rtsne} function.
+\item \code{tsne_columns}: The names of the t-SNE columns used.
+\item \code{initial_dims}: The number of dimensions used in the initial PCA step.
+\item \code{perplexity}: The perplexity parameter used.
+\item \code{exaggeration_factor}: The exaggeration factor used.
+\item \code{max_iter}: The number of iterations used.
+\item \code{theta}: The Barnes-Hut approximation parameter used.
+\item \code{eta}: The learning rate used.
+}
 }
 \description{
-This function performs a t-SNE analysis on a given dataset.
+The \code{calculate_tsne} function reduces high-dimensional data into a 2-dimensional space using
+t-SNE for visualization and analysis. This function dynamically adjusts t-SNE parameters
+based on the characteristics of the dataset, ensuring robust handling of edge cases.
+It also performs data validation, such as checking for sufficient data, removing zero variance
+columns, and adjusting perplexity for optimal performance.
+}
+\examples{
+dataset <- data.frame(matrix(runif(1000), nrow = 100))
+settings <- list(
+  fileHeader = data.frame(original = colnames(dataset), remapped = colnames(dataset)),
+  perplexity = 30,
+  max_iter = 1000,
+  eta = 200,
+  theta = 0.5
+)
+result <- calculate_tsne(dataset, settings)
+print(result$info.norm)
+
 }

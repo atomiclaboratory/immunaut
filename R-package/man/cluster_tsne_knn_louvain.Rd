@@ -2,21 +2,29 @@
 % Please edit documentation in R/functions.R
 \name{cluster_tsne_knn_louvain}
 \alias{cluster_tsne_knn_louvain}
-\title{Cluster t-SNE using KNN and Louvain method}
+\title{Cluster t-SNE Results Using KNN and Louvain Method}
 \usage{
 cluster_tsne_knn_louvain(info.norm, tsne.norm, settings)
 }
 \arguments{
-\item{info.norm}{The normalized data on which the t-SNE analysis was carried out.}
+\item{info.norm}{A data frame containing the normalized data on which the t-SNE analysis was carried out.}
 
-\item{tsne.norm}{The t-SNE results.}
+\item{tsne.norm}{The t-SNE results object, including the 2D t-SNE coordinates.}
 
-\item{settings}{A list of settings for the analysis.}
+\item{settings}{A list of settings for the analysis, including \code{knn_clusters} and clustering options.}
 }
 \value{
-A list containing the analyzed data with cluster assignment and cluster centroids.
+A list containing:
+\itemize{
+\item \code{info.norm}: The input data frame with an additional \code{pandora_cluster} column for cluster assignments.
+\item \code{cluster_data}: A data frame with cluster centers and labeled clusters.
+\item \code{avg_silhouette_score}: The average silhouette score for cluster quality evaluation.
+\item \code{modularity}: The modularity score of the Louvain clustering.
+}
 }
 \description{
-This function applies K-Nearest Neighbors (KNN) clustering and Louvain
-community detection on t-SNE results to identify clusters.
+This function performs clustering on t-SNE results using K-Nearest Neighbors (KNN)
+to build a graph and the Louvain method for community detection. It dynamically adjusts
+KNN parameters based on the dataset size and provides additional information
+about clustering quality using modularity and silhouette scores.
 }

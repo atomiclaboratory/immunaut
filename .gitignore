@@ -4,6 +4,7 @@
 *.Rproj.user
 *.Rproj.user
 *.RData
+immunaut.Rproj
 
 *.o
 *.so

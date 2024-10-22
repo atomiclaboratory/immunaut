@@ -2,16 +2,18 @@
 % Please edit documentation in R/utils.R
 \name{is_var_empty}
 \alias{is_var_empty}
-\title{Check if Request Variable is Empty}
+\title{Check if request variable is Empty}
 \usage{
-is_var_empty(variable)
+is_var_empty(variable, variable_name = NULL)
 }
 \arguments{
-\item{variable}{The input variable to check.}
+\item{variable}{The variable to check.}
+
+\item{variable_name}{Optional; the name of the variable to log.}
 }
 \value{
-A boolean value indicating whether the variable is empty.
+boolean TRUE if the variable is considered empty, FALSE otherwise.
 }
 \description{
-This function checks whether a given variable is empty. It returns TRUE if the variable is empty; otherwise it returns FALSE.
+Checks if the given variable is empty and optionally logs the variable name.
 }

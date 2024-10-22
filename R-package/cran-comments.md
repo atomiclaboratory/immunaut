@@ -4,3 +4,9 @@
 
 ## R CMD check results
 There were no ERRORs or WARNINGs.
+
+## Downstream dependencies
+- This is the first release, and there are no downstream dependencies.
+
+## Comments
+- This is the initial release of the **'Immunaut' R** package.

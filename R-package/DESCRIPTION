@@ -1,19 +1,21 @@
 Package: immunaut
 Version: 1.0.0
-Title: A Versatile Tool for Unsupervised Machine Learning Analysis and Data Preprocessing
-Date: 2023-11-1
+Date: 2024-10-22
+Title: 'Immunaut' is a Tool for Unsupervised Machine Learning Analysis and Data Preprocessing
 Authors@R: c(person("Ivan", "Tomic", role=c("aut","cre","cph"), email="info@ivantomic.com", comment = c(ORCID = "0000-0003-3596-681X")), 
-			person("Adriana", "Tomic", role=c("aut","ctb"), email="atomic.research.lab@gmail.com", comment = c(ORCID = "0000-0001-9885-3535")))
-Author: Ivan Tomic [aut, cre, cph] (<https://orcid.org/0000-0003-3596-681X>), Adriana Tomic [aut, ctb] (<https://orcid.org/0000-0001-9885-3535>)
-Description: Immunaut is a robust R package providing a unified approach to studying immune responses. It integrates advanced statistical techniques for dimensionality reduction, hierarchical clustering, and predictive modelling, making it ideal for analysing complex, high-dimensional biological data. With a focus on ease of use, immunaut opens paths to new insights and discoveries in immunology.
+            person("Adriana", "Tomic", role=c("aut","ctb","cph","fnd"), email="tomic.adriana@gmail.com", comment = c(ORCID = "0000-0001-9885-3535")),
+            person("Stephanie", "Hao", role=c("aut"), email="sphao@bu.edu", comment = c(ORCID = "0000-0002-3760-8234")))
+Author: Ivan Tomic [aut, cre, cph] (<https://orcid.org/0000-0003-3596-681X>), 
+        Adriana Tomic [aut, ctb, cph, fnd] (<https://orcid.org/0000-0001-9885-3535>), 
+        Stephanie Hao [aut] (<https://orcid.org/0000-0002-3760-8234>)
+Description: 'Immunaut' is a robust R package providing a unified approach to studying immune responses. It integrates advanced statistical techniques for dimensionality reduction, hierarchical clustering, and predictive modelling, making it ideal for analysing complex, high-dimensional biological data. With a focus on ease of use, 'Immunaut' opens paths to new insights and discoveries in immunology.
 Maintainer: Ivan Tomic <info@ivantomic.com>
 Packaged: Ivan Tomic <info@ivantomic.com>
 Imports:
+    cluster,
     plyr,
     dplyr,
     caret,
-    gtools,
-    digest,
     stats,
     rlang,
     Rtsne,
@@ -23,11 +25,11 @@ Imports:
     mclust
 Depends:
 	R (>= 3.4.0)
-URL: https://github.com/atomiclaboratory/immunaut
+URL: https://github.com/atomiclaboratory/immunaut, <https://atomic-lab.org>
 BugReports: https://github.com/atomiclaboratory/immunaut/issues
-License: MIT
+License: GPL-3
 Encoding: UTF-8
 LazyLoad: yes
 LazyData: yes
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.1
 Roxygen: list(markdown = TRUE)

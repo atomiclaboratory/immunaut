@@ -3,11 +3,12 @@
 ^\.Rproj\.user$
 cran-comments.md
 ^README\.Rmd$
+^README\.html$
 ^README-.*\.png$
 ./.git$
 LICENCE$
 Example_500k_51f.csv
-immunaut\.png$
+mulset\.png$
 images
 ^.*\.png$
 ^\.RData$
@@ -20,4 +21,3 @@ images
 \.dll$
 .RData
 .Rhistory
-testing_data.csv

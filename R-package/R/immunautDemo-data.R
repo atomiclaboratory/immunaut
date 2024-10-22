@@ -8,8 +8,13 @@
 #' @keywords datasets
 #'
 #' @examples
-#' data(immunautDemo)
-#' print(head(immunautDemo))
-#' results <- immunaut(immunautDemo, settings)
+#' \dontrun{
+#' 	data(immunautDemo)
+#' 	## define settings variable
+#' 	settings <- list()
+#' 	settings$fileHeader <- generate_file_header(immunautDemo)
+#' 	# ... and other settings
+#' 	results <- immunaut(immunautDemo, settings)
+#' }
 #' 
 "immunautDemo"

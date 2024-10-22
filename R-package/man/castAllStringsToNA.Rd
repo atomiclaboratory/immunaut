@@ -2,18 +2,18 @@
 % Please edit documentation in R/utils.R
 \name{castAllStringsToNA}
 \alias{castAllStringsToNA}
-\title{Cast All Strings to NA}
+\title{castAllStringsToNA}
 \usage{
 castAllStringsToNA(dataset, excludeColumns = c())
 }
 \arguments{
-\item{dataset}{Dataframe to be processed}
+\item{dataset}{dataframe}
 
-\item{excludeColumns}{Character vector of column names to exclude}
+\item{excludeColumns}{character}
 }
 \value{
-A dataframe with all strings in non-excluded columns cast to NA
+dataframe
 }
 \description{
-Removes all strings/words from specified columns in a dataset
+Removes all strings/words from specified columns in dataset
 }

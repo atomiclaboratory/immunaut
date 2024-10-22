@@ -622,59 +622,20 @@ their complex datasets.</p>
 from <a href="https://CRAN.R-project.org">CRAN</a> with:</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="st">&quot;immunaut&quot;</span>)</span></code></pre></div>
 <p>Or you can install <strong>immunaut</strong> directly from
-<strong>github</strong> with use of following commands:</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="st">&quot;devtools&quot;</span>)</span>
+<strong>GitHub</strong> with use of following commands:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="co"># install.packages(&quot;devtools&quot;)</span></span>
 <span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>devtools<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">&quot;atomiclaboratory/immunaut&quot;</span>, <span class="at">subdir =</span> <span class="st">&#39;R-package&#39;</span>)</span></code></pre></div>
 <h2 id="usage-example">Usage Example</h2>
 <div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">library</span>(<span class="st">&quot;immunaut&quot;</span>)</span>
-<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="do">## Using provided demo data</span></span>
-<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="fu">data</span>(immunautDemo)</span>
-<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="do">## results &lt;- immunaut(immunautDemo, settings)</span></span></code></pre></div>
-<h2 id="pros-and-cons">Pros and Cons</h2>
-<p>While this package offers comprehensive functionality, we believe
-it’s vital for users to be aware of its strengths and weaknesses.</p>
-<h3 id="pros">Pros:</h3>
-<ul>
-<li><p>Comprehensive workflow: The R package provides an all-in-one
-solution for dimensionality reduction, clustering, and predictive
-modelling, eliminating the need to piece together separate
-tools.</p></li>
-<li><p>Flexible use: This tool has been designed to accommodate a
-variety of high-dimensional dataset types, making it ideal for a broad
-range of applications.</p></li>
-<li><p>Improved data understanding: Utilising t-SNE, hierarchical
-clustering, and machine learning within a single pipeline allows for a
-sophisticated and in-depth understanding of a dataset. This is
-particularly useful in identifying patterns and relationships that might
-not be apparent through individual analyses.</p></li>
-<li><p>Customizable: With the availability of source code, this package
-allows users to customize and modify its functionality according to
-their specific research needs.</p></li>
-</ul>
-<h3 id="cons">Cons:</h3>
-<ul>
-<li><p>Required knowledge: A certain level of familiarity with R and the
-respective statistical techniques (t-SNE, clustering, machine learning)
-is necessary to effectively use this package.</p></li>
-<li><p>Performance limitations: As with any tool, the performance of the
-package is limited by computational resources. Tasks such as t-SNE and
-machine learning modelling can be resource-intensive.</p></li>
-<li><p>Interpretation challenges: The result interpretation particularly
-from the t-SNE and hierarchical clustering may be complex and sometimes
-subjective.</p></li>
-<li><p>Possible overfitting: While predictive modelling can be a
-powerful tool for understanding complex datasets, care must be taken to
-avoid overfitting, especially if the number of features is relatively
-high compared to the number of samples.</p></li>
-</ul>
-<h2 id="license">License</h2>
-<p><strong>immunaut</strong> source-code uses the MIT LICENCE, see our
-<strong>LICENSE</strong> file.</p>
-<h2 id="acknowledgements">Acknowledgements</h2>
-<p>We are sincerely grateful to our users and contributors who help us
-improve the tool and help it grow. Enjoy your data analysis journey with
-the <strong>immunaut</strong> package!</p>
-<h2 id="citation">Citation</h2>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="do">## Using provided demo data</span></span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="fu">data</span>(immunautDemo)</span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a></span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a>settings <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a>settings<span class="sc">$</span>fileHeader <span class="ot">&lt;-</span> <span class="fu">generate_file_header</span>(immunautDemo)</span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a></span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a><span class="co">#results &lt;- immunaut(immunautDemo, settings)</span></span></code></pre></div>
+<h2 id="example-1">Example 1</h2>
 
 </body>
 </html>

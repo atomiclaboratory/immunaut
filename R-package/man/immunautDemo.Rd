@@ -16,9 +16,14 @@ Demo data set from immunaut package.
 This data is used in this package examples. It consist of 4x4 feature matrix + additional dummy columns that can be used for testing.
 }
 \examples{
-data(immunautDemo)
-print(head(immunautDemo))
-results <- immunaut(immunautDemo, settings)
+\dontrun{
+	data(immunautDemo)
+	## define settings variable
+	settings <- list()
+	settings$fileHeader <- generate_file_header(immunautDemo)
+	# ... and other settings
+	results <- immunaut(immunautDemo, settings)
+}
 
 }
 \keyword{datasets}
