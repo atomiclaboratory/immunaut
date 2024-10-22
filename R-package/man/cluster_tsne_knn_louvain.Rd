@@ -2,29 +2,53 @@
 % Please edit documentation in R/functions.R
 \name{cluster_tsne_knn_louvain}
 \alias{cluster_tsne_knn_louvain}
-\title{Cluster t-SNE Results Using KNN and Louvain Method}
+\title{Perform KNN and Louvain Clustering on t-SNE Results}
 \usage{
 cluster_tsne_knn_louvain(info.norm, tsne.norm, settings)
 }
 \arguments{
 \item{info.norm}{A data frame containing the normalized data on which the t-SNE analysis was carried out.}
 
-\item{tsne.norm}{The t-SNE results object, including the 2D t-SNE coordinates.}
+\item{tsne.norm}{The t-SNE results object, which includes the 2D t-SNE coordinates in the \code{Y} matrix.}
 
-\item{settings}{A list of settings for the analysis, including \code{knn_clusters} and clustering options.}
+\item{settings}{A list of settings for the analysis, including:
+\itemize{
+\item \code{knn_clusters}: The number of nearest neighbors to use for KNN (default: 250).
+\item \code{start_resolution}: The starting resolution for Louvain clustering.
+\item \code{end_resolution}: The maximum resolution to test.
+\item \code{min_modularity}: The minimum acceptable modularity for valid clusterings.
+}}
 }
 \value{
 A list containing:
 \itemize{
 \item \code{info.norm}: The input data frame with an additional \code{pandora_cluster} column for cluster assignments.
-\item \code{cluster_data}: A data frame with cluster centers and labeled clusters.
-\item \code{avg_silhouette_score}: The average silhouette score for cluster quality evaluation.
+\item \code{cluster_data}: A data frame containing cluster centroids and labeled clusters.
+\item \code{avg_silhouette_score}: The average silhouette score, a measure of clustering quality.
 \item \code{modularity}: The modularity score of the Louvain clustering.
 }
 }
 \description{
-This function performs clustering on t-SNE results using K-Nearest Neighbors (KNN)
-to build a graph and the Louvain method for community detection. It dynamically adjusts
-KNN parameters based on the dataset size and provides additional information
-about clustering quality using modularity and silhouette scores.
+This function performs clustering on t-SNE results by first applying K-Nearest Neighbors (KNN) to construct a graph,
+and then using the Louvain method for community detection. The function dynamically adjusts KNN parameters based on the
+size of the dataset, ensuring scalability. Additionally, it computes the silhouette score to evaluate cluster quality
+and calculates cluster centroids for visualization.
+}
+\details{
+This function constructs a KNN graph using the t-SNE results, then applies the Louvain algorithm for community detection.
+It adjusts the KNN parameter dynamically based on the dataset size, ensuring a robust clustering process. Silhouette scores
+are computed to assess the quality of the clustering, while cluster centroids and sizes are calculated for easy visualization.
+NA cluster assignments are handled by assigning them to a separate cluster labeled as "100."
+}
+\examples{
+\dontrun{
+# Example usage:
+tsne_results <- Rtsne::Rtsne(matrix(runif(200), ncol = 2))  # Generate random t-SNE data
+settings <- list(knn_clusters = 10, start_resolution = 0.1,
+					end_resolution = 2, min_modularity = 0.3)
+result <- cluster_tsne_knn_louvain(info.norm = data.frame(matrix(runif(200), ncol = 2)), 
+                                   tsne.norm = tsne_results, settings = settings)
+print(result$cluster_data)
+}
+
 }

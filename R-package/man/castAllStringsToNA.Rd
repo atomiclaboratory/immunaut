@@ -2,18 +2,33 @@
 % Please edit documentation in R/utils.R
 \name{castAllStringsToNA}
 \alias{castAllStringsToNA}
-\title{castAllStringsToNA}
+\title{Cast All Strings to NA}
 \usage{
 castAllStringsToNA(dataset, excludeColumns = c())
 }
 \arguments{
-\item{dataset}{dataframe}
+\item{dataset}{A data frame containing the dataset to be processed.}
 
-\item{excludeColumns}{character}
+\item{excludeColumns}{A character vector specifying the names of columns to be excluded from processing.
+These columns will not have any values converted to \code{NA}.}
 }
 \value{
-dataframe
+A data frame where non-numeric strings in the included columns are replaced with \code{NA}, and all other columns remain unchanged.
 }
 \description{
-Removes all strings/words from specified columns in dataset
+This function processes the columns of a given dataset, converting all non-numeric string values
+(including factor columns converted to character) to \code{NA}. It excludes specified columns from
+this transformation. Columns that are numeric or of other types are left unchanged.
+}
+\details{
+The function iterates through the specified columns (excluding those listed in \code{excludeColumns}),
+converts factors to character, and then attempts to convert character values to numeric.
+Any non-numeric strings will be converted to \code{NA}. This is useful for cleaning datasets that may contain
+mixed data types.
+}
+\examples{
+data <- data.frame(A = c("1", "2", "apple"), B = c("3", "banana", "4"), stringsAsFactors = TRUE)
+cleaned_data <- castAllStringsToNA(data, excludeColumns = c("B"))
+print(cleaned_data)
+
 }

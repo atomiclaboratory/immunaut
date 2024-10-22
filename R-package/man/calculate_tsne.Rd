@@ -36,6 +36,7 @@ It also performs data validation, such as checking for sufficient data, removing
 columns, and adjusting perplexity for optimal performance.
 }
 \examples{
+\dontrun{
 dataset <- data.frame(matrix(runif(1000), nrow = 100))
 settings <- list(
   fileHeader = data.frame(original = colnames(dataset), remapped = colnames(dataset)),
@@ -46,5 +47,6 @@ settings <- list(
 )
 result <- calculate_tsne(dataset, settings)
 print(result$info.norm)
+}
 
 }

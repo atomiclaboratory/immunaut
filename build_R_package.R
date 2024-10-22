@@ -60,6 +60,6 @@ roxygen2::roxygenise(project_dir)
 devtools::release(project_dir)
 
 
-# setwd(project_dir)
-# system(paste("R CMD Rd2pdf", shQuote(project_dir), "--output=manual.pdf"))
+ setwd(project_dir)
+system(paste("R CMD Rd2pdf", shQuote(project_dir), "--output=manual.pdf"))
 

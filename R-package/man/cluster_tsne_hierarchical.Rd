@@ -2,20 +2,57 @@
 % Please edit documentation in R/functions.R
 \name{cluster_tsne_hierarchical}
 \alias{cluster_tsne_hierarchical}
-\title{Hierarchical clustering on t-SNE results}
+\title{Perform Hierarchical Clustering on t-SNE Results}
 \usage{
 cluster_tsne_hierarchical(info.norm, tsne.norm, settings)
 }
 \arguments{
-\item{info.norm}{The normalized data on which the t-SNE analysis was carried out.}
+\item{info.norm}{A data frame containing the normalized data on which the t-SNE analysis was carried out.}
 
-\item{tsne.norm}{The t-SNE results.}
+\item{tsne.norm}{The t-SNE results object, including the 2D t-SNE coordinates (\code{Y} matrix).}
 
-\item{settings}{A list of settings for the analysis.}
+\item{settings}{A list of settings for the clustering analysis. The settings must include:
+\itemize{
+\item \code{clustLinkage}: The linkage method for hierarchical clustering (e.g., "ward.D2").
+\item \code{clustGroups}: The number of groups (clusters) to cut the hierarchical tree into.
+\item \code{distMethod}: The distance metric to be used (e.g., "euclidean").
+\item \code{minPtsAdjustmentFactor}: A factor to adjust the minimum number of points required to form a cluster (MinPts).
+\item \code{epsQuantile}: The quantile used to determine the \code{eps} value for DBSCAN.
+\item \code{excludeOutliers}: A logical value indicating whether to exclude outliers detected by DBSCAN from hierarchical clustering.
+\item \code{pointSize}: A numeric value used to adjust the placement of outlier centroids.
+}}
 }
 \value{
-A list containing the analyzed data with cluster assignment and cluster centroids.
+A list containing:
+\itemize{
+\item \code{info.norm}: The input data frame with an additional \code{pandora_cluster} column for cluster assignments.
+\item \code{cluster_data}: A data frame with cluster centroids and labeled clusters.
+\item \code{avg_silhouette_score}: The average silhouette score, providing a measure of clustering quality.
+}
 }
 \description{
-This function applies Hierarchical Clustering on t-SNE results.
+This function applies hierarchical clustering to t-SNE results, allowing for the identification of clusters in
+a reduced-dimensional space. The function also handles outliers by using DBSCAN for initial noise detection,
+and provides options to include or exclude outliers from the clustering process. Silhouette scores are computed
+to evaluate clustering quality, and cluster centroids are returned for visualization.
+}
+\details{
+The function first uses DBSCAN to detect outliers (marked as cluster "100") and then applies hierarchical clustering
+on the t-SNE results, either including or excluding the outliers depending on the settings. Silhouette scores are
+computed to assess the quality of the clustering. Cluster centroids are calculated and returned, along with the
+sizes of each cluster. Outliers, if detected, are handled separately in the final centroid calculation.
+}
+\examples{
+\dontrun{
+# Example usage:
+tsne_results <- Rtsne::Rtsne(matrix(runif(200), ncol = 2))  # Generate random t-SNE data
+settings <- list(clustLinkage = "ward.D2", clustGroups = 5, 
+					distMethod = "euclidean", 
+					minPtsAdjustmentFactor = 1.5, epsQuantile = 0.9, 
+					excludeOutliers = TRUE, pointSize = 1.5)
+result <- cluster_tsne_hierarchical(info.norm = data.frame(matrix(runif(200), ncol = 2)), 
+                                    tsne.norm = tsne_results, settings = settings)
+print(result$cluster_data)
+}
+
 }

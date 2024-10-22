@@ -2,20 +2,52 @@
 % Please edit documentation in R/functions.R
 \name{cluster_tsne_density}
 \alias{cluster_tsne_density}
-\title{Density-based clustering on t-SNE results}
+\title{Perform Density-Based Clustering on t-SNE Results Using DBSCAN}
 \usage{
 cluster_tsne_density(info.norm, tsne.norm, settings)
 }
 \arguments{
-\item{info.norm}{The normalized data on which the t-SNE analysis was carried out.}
+\item{info.norm}{A data frame containing the normalized data on which the t-SNE analysis was carried out.}
 
-\item{tsne.norm}{The t-SNE results.}
+\item{tsne.norm}{The t-SNE results object, including the 2D t-SNE coordinates (\code{Y} matrix).}
 
-\item{settings}{A list of settings for the analysis.}
+\item{settings}{A list of settings for the DBSCAN clustering. These settings include:
+\itemize{
+\item \code{minPtsAdjustmentFactor}: A factor to adjust the minimum number of points required to form a cluster (MinPts).
+\item \code{epsQuantile}: The quantile used to determine the \code{eps} value for DBSCAN.
+}}
 }
 \value{
-A list containing the analyzed data with cluster assignment and cluster centroids.
+A list containing:
+\itemize{
+\item \code{info.norm}: The input data frame with an additional \code{pandora_cluster} column for cluster assignments.
+\item \code{cluster_data}: A data frame with cluster centroids and labeled clusters.
+\item \code{avg_silhouette_score}: The average silhouette score, providing a measure of clustering quality.
+}
 }
 \description{
-This function applies Density-Based Spatial Clustering of Applications with Noise (DBSCAN) on t-SNE results.
+This function applies Density-Based Spatial Clustering of Applications with Noise (DBSCAN)
+on t-SNE results to identify clusters and detect noise points. It dynamically calculates the
+\code{MinPts} and \code{eps} parameters based on the t-SNE results and settings provided. Additionally,
+the function computes silhouette scores to evaluate cluster quality and returns cluster centroids
+along with cluster sizes.
+}
+\details{
+The function first calculates \code{MinPts} based on the dimensionality of the t-SNE data and adjusts
+it using the provided \code{minPtsAdjustmentFactor}. The \code{eps} value is determined dynamically from the
+k-nearest neighbors distance using the quantile specified by \code{epsQuantile}. DBSCAN is then applied
+to the t-SNE data, and any NA values in the cluster assignments are replaced with a predefined
+outlier cluster ID (100). Finally, the function calculates cluster centroids, sizes, and silhouette
+scores to evaluate cluster separation and quality.
+}
+\examples{
+\dontrun{
+# Example usage:
+tsne_results <- Rtsne::Rtsne(matrix(runif(200), ncol = 2)) # Generate random t-SNE data
+settings <- list(minPtsAdjustmentFactor = 1.5, epsQuantile = 0.9)
+result <- cluster_tsne_density(info.norm = data.frame(matrix(runif(200), ncol = 2)), 
+                               tsne.norm = tsne_results, settings = settings)
+print(result$cluster_data)
+}
+
 }

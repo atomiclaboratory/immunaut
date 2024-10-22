@@ -28,6 +28,7 @@
 #' @importFrom plyr mapvalues
 #' 
 #' @examples
+#' \dontrun{
 #' dataset <- data.frame(matrix(runif(1000), nrow = 100))
 #' settings <- list(
 #'   fileHeader = data.frame(original = colnames(dataset), remapped = colnames(dataset)),
@@ -38,6 +39,7 @@
 #' )
 #' result <- calculate_tsne(dataset, settings)
 #' print(result$info.norm)
+#' }
 #'
 #' @export
 calculate_tsne <- function(dataset, settings, removeGroups = TRUE){
@@ -201,27 +203,50 @@ calculate_tsne <- function(dataset, settings, removeGroups = TRUE){
     ))
 }
 
-#' Cluster t-SNE Results Using KNN and Louvain Method
+#' Perform KNN and Louvain Clustering on t-SNE Results
 #'
-#' This function performs clustering on t-SNE results using K-Nearest Neighbors (KNN) 
-#' to build a graph and the Louvain method for community detection. It dynamically adjusts 
-#' KNN parameters based on the dataset size and provides additional information 
-#' about clustering quality using modularity and silhouette scores.
+#' This function performs clustering on t-SNE results by first applying K-Nearest Neighbors (KNN) to construct a graph, 
+#' and then using the Louvain method for community detection. The function dynamically adjusts KNN parameters based on the 
+#' size of the dataset, ensuring scalability. Additionally, it computes the silhouette score to evaluate cluster quality 
+#' and calculates cluster centroids for visualization.
 #'
 #' @param info.norm A data frame containing the normalized data on which the t-SNE analysis was carried out.
-#' @param tsne.norm The t-SNE results object, including the 2D t-SNE coordinates.
-#' @param settings A list of settings for the analysis, including `knn_clusters` and clustering options.
+#' @param tsne.norm The t-SNE results object, which includes the 2D t-SNE coordinates in the `Y` matrix.
+#' @param settings A list of settings for the analysis, including:
+#' - `knn_clusters`: The number of nearest neighbors to use for KNN (default: 250).
+#' - `start_resolution`: The starting resolution for Louvain clustering.
+#' - `end_resolution`: The maximum resolution to test.
+#' - `min_modularity`: The minimum acceptable modularity for valid clusterings.
 #'
 #' @importFrom FNN get.knn
 #' @importFrom igraph graph_from_data_frame simplify cluster_louvain membership modularity
 #' @importFrom dplyr group_by select summarise across left_join n
 #' @importFrom cluster silhouette
-#' @importFrom stats median
+#' @importFrom stats dist median
+#'
 #' @return A list containing:
 #' - `info.norm`: The input data frame with an additional `pandora_cluster` column for cluster assignments.
-#' - `cluster_data`: A data frame with cluster centers and labeled clusters.
-#' - `avg_silhouette_score`: The average silhouette score for cluster quality evaluation.
+#' - `cluster_data`: A data frame containing cluster centroids and labeled clusters.
+#' - `avg_silhouette_score`: The average silhouette score, a measure of clustering quality.
 #' - `modularity`: The modularity score of the Louvain clustering.
+#'
+#' @details
+#' This function constructs a KNN graph using the t-SNE results, then applies the Louvain algorithm for community detection. 
+#' It adjusts the KNN parameter dynamically based on the dataset size, ensuring a robust clustering process. Silhouette scores 
+#' are computed to assess the quality of the clustering, while cluster centroids and sizes are calculated for easy visualization.
+#' NA cluster assignments are handled by assigning them to a separate cluster labeled as "100."
+#'
+#' @examples
+#' \dontrun{
+#' # Example usage:
+#' tsne_results <- Rtsne::Rtsne(matrix(runif(200), ncol = 2))  # Generate random t-SNE data
+#' settings <- list(knn_clusters = 10, start_resolution = 0.1,
+#' 					end_resolution = 2, min_modularity = 0.3)
+#' result <- cluster_tsne_knn_louvain(info.norm = data.frame(matrix(runif(200), ncol = 2)), 
+#'                                    tsne.norm = tsne_results, settings = settings)
+#' print(result$cluster_data)
+#' }
+#'
 #' @export
 cluster_tsne_knn_louvain <- function(info.norm, tsne.norm, settings){
 	set.seed(1337)
@@ -322,19 +347,53 @@ cluster_tsne_knn_louvain <- function(info.norm, tsne.norm, settings){
     return(list(info.norm = info.norm, cluster_data = lc.cent, avg_silhouette_score = avg_silhouette_score, modularity = modularity))
 }
 
-#' Hierarchical clustering on t-SNE results
+#' Perform Hierarchical Clustering on t-SNE Results
 #'
-#' This function applies Hierarchical Clustering on t-SNE results.
+#' This function applies hierarchical clustering to t-SNE results, allowing for the identification of clusters in 
+#' a reduced-dimensional space. The function also handles outliers by using DBSCAN for initial noise detection, 
+#' and provides options to include or exclude outliers from the clustering process. Silhouette scores are computed 
+#' to evaluate clustering quality, and cluster centroids are returned for visualization.
 #'
-#' @param info.norm The normalized data on which the t-SNE analysis was carried out.
-#' @param tsne.norm The t-SNE results.
-#' @param settings A list of settings for the analysis.
+#' @param info.norm A data frame containing the normalized data on which the t-SNE analysis was carried out.
+#' @param tsne.norm The t-SNE results object, including the 2D t-SNE coordinates (`Y` matrix).
+#' @param settings A list of settings for the clustering analysis. The settings must include:
+#' - `clustLinkage`: The linkage method for hierarchical clustering (e.g., "ward.D2").
+#' - `clustGroups`: The number of groups (clusters) to cut the hierarchical tree into.
+#' - `distMethod`: The distance metric to be used (e.g., "euclidean").
+#' - `minPtsAdjustmentFactor`: A factor to adjust the minimum number of points required to form a cluster (MinPts).
+#' - `epsQuantile`: The quantile used to determine the `eps` value for DBSCAN.
+#' - `excludeOutliers`: A logical value indicating whether to exclude outliers detected by DBSCAN from hierarchical clustering.
+#' - `pointSize`: A numeric value used to adjust the placement of outlier centroids.
 #'
-#' @importFrom stats hclust dist cutree
-#' @importFrom dplyr group_by select summarise n left_join summarize_all %>%
-#' @importFrom stats median
+#' @importFrom stats hclust dist cutree median
+#' @importFrom dplyr group_by summarise left_join mutate select n
+#' @importFrom cluster silhouette
+#' @importFrom dbscan kNNdist
 #'
-#' @return A list containing the analyzed data with cluster assignment and cluster centroids.
+#' @return A list containing:
+#' - `info.norm`: The input data frame with an additional `pandora_cluster` column for cluster assignments.
+#' - `cluster_data`: A data frame with cluster centroids and labeled clusters.
+#' - `avg_silhouette_score`: The average silhouette score, providing a measure of clustering quality.
+#'
+#' @details
+#' The function first uses DBSCAN to detect outliers (marked as cluster "100") and then applies hierarchical clustering 
+#' on the t-SNE results, either including or excluding the outliers depending on the settings. Silhouette scores are 
+#' computed to assess the quality of the clustering. Cluster centroids are calculated and returned, along with the 
+#' sizes of each cluster. Outliers, if detected, are handled separately in the final centroid calculation.
+#'
+#' @examples
+#' \dontrun{
+#' # Example usage:
+#' tsne_results <- Rtsne::Rtsne(matrix(runif(200), ncol = 2))  # Generate random t-SNE data
+#' settings <- list(clustLinkage = "ward.D2", clustGroups = 5, 
+#' 					distMethod = "euclidean", 
+#' 					minPtsAdjustmentFactor = 1.5, epsQuantile = 0.9, 
+#' 					excludeOutliers = TRUE, pointSize = 1.5)
+#' result <- cluster_tsne_hierarchical(info.norm = data.frame(matrix(runif(200), ncol = 2)), 
+#'                                     tsne.norm = tsne_results, settings = settings)
+#' print(result$cluster_data)
+#' }
+#'
 #' @export
 cluster_tsne_hierarchical <- function(info.norm, tsne.norm, settings) {
     set.seed(1337)
@@ -450,19 +509,51 @@ cluster_tsne_hierarchical <- function(info.norm, tsne.norm, settings) {
 }
 
 
-#' Mclust clustering on t-SNE results
+#' Apply Mclust Clustering on t-SNE Results
 #'
-#' This function applies Mclust clustering on t-SNE results.
+#' This function performs Mclust clustering on the 2D t-SNE results, which are derived from high-dimensional data. 
+#' It includes an initial outlier detection step using DBSCAN, and the user can specify whether to exclude outliers 
+#' from the clustering process. Silhouette scores are computed to evaluate the quality of the clustering, and cluster 
+#' centroids are returned for visualization, with outliers handled separately.
 #'
-#' @param info.norm The normalized data on which the t-SNE analysis was carried out.
-#' @param tsne.norm The t-SNE results.
-#' @param settings A list of settings for the analysis.
+#' @param info.norm A data frame containing the normalized data on which the t-SNE analysis was carried out.
+#' @param tsne.norm The t-SNE results object, including the 2D t-SNE coordinates (`Y` matrix).
+#' @param settings A list of settings for the clustering analysis, including:
+#' - `clustGroups`: The number of groups (clusters) for Mclust to fit.
+#' - `minPtsAdjustmentFactor`: A factor to adjust the minimum number of points required to form a cluster (MinPts) in DBSCAN.
+#' - `epsQuantile`: The quantile used to determine the `eps` value for DBSCAN.
+#' - `excludeOutliers`: A logical value indicating whether to exclude outliers detected by DBSCAN from the Mclust clustering.
+#' - `pointSize`: A numeric value used to adjust the placement of outlier centroids.
 #'
 #' @importFrom mclust Mclust
-#' @importFrom dplyr group_by select summarize_all
-#' @importFrom stats median
+#' @importFrom dplyr group_by summarise left_join mutate n
+#' @importFrom stats dist median
+#' @importFrom dbscan kNNdist
+#' @importFrom cluster silhouette
 #'
-#' @return A list containing the analyzed data with cluster assignment and cluster centroids.
+#' @return A list containing:
+#' - `info.norm`: The input data frame with an additional `pandora_cluster` column for cluster assignments.
+#' - `cluster_data`: A data frame with cluster centroids and labeled clusters.
+#' - `avg_silhouette_score`: The average silhouette score, providing a measure of clustering quality.
+#'
+#' @details
+#' The function first uses DBSCAN to detect outliers (marked as cluster "100") and then applies Mclust clustering on the t-SNE 
+#' results. Outliers can be either included or excluded from the clustering, depending on the settings. Silhouette scores are 
+#' calculated to assess the quality of the clustering. Cluster centroids are returned, along with the sizes of each cluster, 
+#' and outliers are handled separately in the centroid calculation.
+#'
+#' @examples
+#' \dontrun{
+#' # Example usage:
+#' tsne_results <- Rtsne::Rtsne(matrix(runif(200), ncol = 2))
+#' settings <- list(clustGroups = 3, minPtsAdjustmentFactor = 1.5, 
+#' 					epsQuantile = 0.9, excludeOutliers = TRUE, 
+#' 					pointSize = 1.5)
+#' result <- cluster_tsne_mclust(info.norm = data.frame(matrix(runif(200), ncol = 2)), 
+#'                               tsne.norm = tsne_results, settings = settings)
+#' print(result$cluster_data)
+#' }
+#'
 #' @export
 cluster_tsne_mclust <- function(info.norm, tsne.norm, settings) {
     set.seed(1337)
@@ -574,20 +665,47 @@ cluster_tsne_mclust <- function(info.norm, tsne.norm, settings) {
 }
 
 
-#' Density-based clustering on t-SNE results
+#' Perform Density-Based Clustering on t-SNE Results Using DBSCAN
 #'
-#' This function applies Density-Based Spatial Clustering of Applications with Noise (DBSCAN) on t-SNE results.
+#' This function applies Density-Based Spatial Clustering of Applications with Noise (DBSCAN) 
+#' on t-SNE results to identify clusters and detect noise points. It dynamically calculates the 
+#' `MinPts` and `eps` parameters based on the t-SNE results and settings provided. Additionally, 
+#' the function computes silhouette scores to evaluate cluster quality and returns cluster centroids 
+#' along with cluster sizes.
 #'
-#' @param info.norm The normalized data on which the t-SNE analysis was carried out.
-#' @param tsne.norm The t-SNE results.
-#' @param settings A list of settings for the analysis.
+#' @param info.norm A data frame containing the normalized data on which the t-SNE analysis was carried out.
+#' @param tsne.norm The t-SNE results object, including the 2D t-SNE coordinates (`Y` matrix).
+#' @param settings A list of settings for the DBSCAN clustering. These settings include:
+#' - `minPtsAdjustmentFactor`: A factor to adjust the minimum number of points required to form a cluster (MinPts).
+#' - `epsQuantile`: The quantile used to determine the `eps` value for DBSCAN.
 #'
-#' @importFrom fpc dbscan
 #' @importFrom dplyr group_by select summarise n across left_join
 #' @importFrom stats dist
 #' @importFrom cluster silhouette
 #'
-#' @return A list containing the analyzed data with cluster assignment and cluster centroids.
+#' @return A list containing:
+#' - `info.norm`: The input data frame with an additional `pandora_cluster` column for cluster assignments.
+#' - `cluster_data`: A data frame with cluster centroids and labeled clusters.
+#' - `avg_silhouette_score`: The average silhouette score, providing a measure of clustering quality.
+#'
+#' @details
+#' The function first calculates `MinPts` based on the dimensionality of the t-SNE data and adjusts 
+#' it using the provided `minPtsAdjustmentFactor`. The `eps` value is determined dynamically from the 
+#' k-nearest neighbors distance using the quantile specified by `epsQuantile`. DBSCAN is then applied 
+#' to the t-SNE data, and any NA values in the cluster assignments are replaced with a predefined 
+#' outlier cluster ID (100). Finally, the function calculates cluster centroids, sizes, and silhouette 
+#' scores to evaluate cluster separation and quality.
+#'
+#' @examples
+#' \dontrun{
+#' # Example usage:
+#' tsne_results <- Rtsne::Rtsne(matrix(runif(200), ncol = 2)) # Generate random t-SNE data
+#' settings <- list(minPtsAdjustmentFactor = 1.5, epsQuantile = 0.9)
+#' result <- cluster_tsne_density(info.norm = data.frame(matrix(runif(200), ncol = 2)), 
+#'                                tsne.norm = tsne_results, settings = settings)
+#' print(result$cluster_data)
+#' }
+#'
 #' @export
 cluster_tsne_density <- function(info.norm, tsne.norm, settings){
     set.seed(1337)

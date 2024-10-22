@@ -61,21 +61,51 @@ preProcessResample <- function(datasetData, preProcess, selectedOutcomeColumns, 
     return(list(preProcessMapping = preProcessMapping, datasetData = datasetData))
 }
 
-#' Preprocess a Dataset 
+#' Preprocess a Dataset Using Specified Methods
 #'
-#' This function preprocesses a dataset using a given method such as 
-#' centering, scaling, etc., and excludes certain classes if specified.
+#' This function preprocesses a dataset by applying a variety of transformation methods, 
+#' such as centering, scaling, or imputation. Users can also specify columns to exclude 
+#' from preprocessing. The function supports a variety of preprocessing methods, including 
+#' dimensionality reduction and imputation techniques, and ensures proper method application order.
 #'
-#' @param data The dataset to be preprocessed.
-#' @param outcome The outcome variable in the dataset (if any).
-#' @param excludeClasses A character vector of column names to exclude from preprocessing.
-#' @param methods A character vector specifying the preprocessing methods to apply.
+#' @param data A data frame or matrix representing the dataset to be preprocessed.
+#' @param outcome A character string representing the outcome variable, if any, 
+#'        for outcome-based transformations.
+#' @param excludeClasses A character vector specifying the column names to exclude from 
+#'        preprocessing. Default is `NULL`, meaning all columns are included in the preprocessing.
+#' @param methods A character vector specifying the preprocessing methods to apply. 
+#'        Default methods are `c("center", "scale")`. Available methods include:
+#'        - `"medianImpute"`: Impute missing values with the median.
+#'        - `"bagImpute"`: Impute missing values using bootstrap aggregation.
+#'        - `"knnImpute"`: Impute missing values using k-nearest neighbors.
+#'        - `"center"`: Subtract the mean from each feature.
+#'        - `"scale"`: Divide features by their standard deviation.
+#'        - `"pca"`: Principal Component Analysis for dimensionality reduction.
+#'        - Other methods such as `"BoxCox"`, `"YeoJohnson"`, `"range"`, etc.
 #'
 #' @importFrom caret preProcess
 #' @importFrom dplyr filter arrange select %>%
 #' @importFrom stats predict
-#' 
-#' @return A list containing the processed dataset and the preprocessing parameters applied.
+#'
+#' @return A list containing:
+#' - `processedMat`: The preprocessed dataset.
+#' - `preprocessParams`: The preprocessing parameters that were applied to the dataset.
+#'
+#' @details
+#' The function applies various transformations to the dataset as specified by the user. It ensures 
+#' that methods are applied in the correct order to maintain data integrity and consistency. If fewer 
+#' than two columns remain after excluding specified columns, the function halts and returns `NULL`. 
+#' The function also handles categorical columns by skipping their transformation. Users can also 
+#' specify outcome variables for specialized preprocessing.
+#'
+#' @examples
+#' \dontrun{
+#' data(iris)
+#' result <- preProcessData(iris[, 1:4], excludeClasses = "Sepal.Length", 
+#'                          methods = c("center", "scale"))
+#' print(result$processedMat)
+#' }
+#'
 #' @export
 preProcessData <- function(data, outcome, excludeClasses, methods = c("center", "scale"))
 {
@@ -127,11 +157,31 @@ preProcessData <- function(data, outcome, excludeClasses, methods = c("center", 
     return(list(processedMat = processedMat, preprocessParams = preprocessParams))
 }
 
-#' @title castAllStringsToNA   
-#' @description Removes all strings/words from specified columns in dataset
-#' @param dataset dataframe
-#' @param excludeColumns character
-#' @return dataframe
+#' @title Cast All Strings to NA
+#' 
+#' @description
+#' This function processes the columns of a given dataset, converting all non-numeric string values 
+#' (including factor columns converted to character) to `NA`. It excludes specified columns from 
+#' this transformation. Columns that are numeric or of other types are left unchanged.
+#' 
+#' @param dataset A data frame containing the dataset to be processed.
+#' @param excludeColumns A character vector specifying the names of columns to be excluded from processing. 
+#' These columns will not have any values converted to `NA`.
+#' 
+#' @return A data frame where non-numeric strings in the included columns are replaced with `NA`, and all other columns remain unchanged.
+#' 
+#' @details
+#' The function iterates through the specified columns (excluding those listed in `excludeColumns`), 
+#' converts factors to character, and then attempts to convert character values to numeric. 
+#' Any non-numeric strings will be converted to `NA`. This is useful for cleaning datasets that may contain
+#' mixed data types.
+#' 
+#' @examples
+#' data <- data.frame(A = c("1", "2", "apple"), B = c("3", "banana", "4"), stringsAsFactors = TRUE)
+#' cleaned_data <- castAllStringsToNA(data, excludeColumns = c("B"))
+#' print(cleaned_data)
+#' 
+#' @export
 castAllStringsToNA <- function(dataset, excludeColumns = c()) {
     # Validate inputs
     if (!is.data.frame(dataset))  {

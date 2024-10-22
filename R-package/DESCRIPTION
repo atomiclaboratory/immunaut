@@ -1,14 +1,14 @@
 Package: immunaut
 Version: 1.0.0
 Date: 2024-10-22
-Title: 'Immunaut' is a Tool for Unsupervised Machine Learning Analysis and Data Preprocessing
+Title: 'Immunaut': Platform for Machine Learning-Driven Immunogenicity Analysis and Vaccine Response Prediction
 Authors@R: c(person("Ivan", "Tomic", role=c("aut","cre","cph"), email="info@ivantomic.com", comment = c(ORCID = "0000-0003-3596-681X")), 
             person("Adriana", "Tomic", role=c("aut","ctb","cph","fnd"), email="tomic.adriana@gmail.com", comment = c(ORCID = "0000-0001-9885-3535")),
             person("Stephanie", "Hao", role=c("aut"), email="sphao@bu.edu", comment = c(ORCID = "0000-0002-3760-8234")))
 Author: Ivan Tomic [aut, cre, cph] (<https://orcid.org/0000-0003-3596-681X>), 
         Adriana Tomic [aut, ctb, cph, fnd] (<https://orcid.org/0000-0001-9885-3535>), 
         Stephanie Hao [aut] (<https://orcid.org/0000-0002-3760-8234>)
-Description: 'Immunaut' is a robust R package providing a unified approach to studying immune responses. It integrates advanced statistical techniques for dimensionality reduction, hierarchical clustering, and predictive modelling, making it ideal for analysing complex, high-dimensional biological data. With a focus on ease of use, 'Immunaut' opens paths to new insights and discoveries in immunology.
+Description: Tool used for for analyzing immune responses and predicting vaccine efficacy using machine learning and advanced data processing techniques. It enables researchers to leverage unsupervised learning methods like clustering and dimensionality reduction (e.g., t-SNE, PCA). Designed to handle high-dimensional immune data. Its capabilities extend from pre-processing immune datasets to identifying immunogenicity signatures across diverse populations.
 Maintainer: Ivan Tomic <info@ivantomic.com>
 Packaged: Ivan Tomic <info@ivantomic.com>
 Imports:
@@ -19,6 +19,7 @@ Imports:
     stats,
     rlang,
     Rtsne,
+    dbscan,
     FNN,
     igraph,
     fpc,

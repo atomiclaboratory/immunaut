@@ -2,23 +2,55 @@
 % Please edit documentation in R/utils.R
 \name{preProcessData}
 \alias{preProcessData}
-\title{Preprocess a Dataset}
+\title{Preprocess a Dataset Using Specified Methods}
 \usage{
 preProcessData(data, outcome, excludeClasses, methods = c("center", "scale"))
 }
 \arguments{
-\item{data}{The dataset to be preprocessed.}
+\item{data}{A data frame or matrix representing the dataset to be preprocessed.}
 
-\item{outcome}{The outcome variable in the dataset (if any).}
+\item{outcome}{A character string representing the outcome variable, if any,
+for outcome-based transformations.}
 
-\item{excludeClasses}{A character vector of column names to exclude from preprocessing.}
+\item{excludeClasses}{A character vector specifying the column names to exclude from
+preprocessing. Default is \code{NULL}, meaning all columns are included in the preprocessing.}
 
-\item{methods}{A character vector specifying the preprocessing methods to apply.}
+\item{methods}{A character vector specifying the preprocessing methods to apply.
+Default methods are \code{c("center", "scale")}. Available methods include:
+- \code{"medianImpute"}: Impute missing values with the median.
+- \code{"bagImpute"}: Impute missing values using bootstrap aggregation.
+- \code{"knnImpute"}: Impute missing values using k-nearest neighbors.
+- \code{"center"}: Subtract the mean from each feature.
+- \code{"scale"}: Divide features by their standard deviation.
+- \code{"pca"}: Principal Component Analysis for dimensionality reduction.
+- Other methods such as \code{"BoxCox"}, \code{"YeoJohnson"}, \code{"range"}, etc.}
 }
 \value{
-A list containing the processed dataset and the preprocessing parameters applied.
+A list containing:
+\itemize{
+\item \code{processedMat}: The preprocessed dataset.
+\item \code{preprocessParams}: The preprocessing parameters that were applied to the dataset.
+}
 }
 \description{
-This function preprocesses a dataset using a given method such as
-centering, scaling, etc., and excludes certain classes if specified.
+This function preprocesses a dataset by applying a variety of transformation methods,
+such as centering, scaling, or imputation. Users can also specify columns to exclude
+from preprocessing. The function supports a variety of preprocessing methods, including
+dimensionality reduction and imputation techniques, and ensures proper method application order.
+}
+\details{
+The function applies various transformations to the dataset as specified by the user. It ensures
+that methods are applied in the correct order to maintain data integrity and consistency. If fewer
+than two columns remain after excluding specified columns, the function halts and returns \code{NULL}.
+The function also handles categorical columns by skipping their transformation. Users can also
+specify outcome variables for specialized preprocessing.
+}
+\examples{
+\dontrun{
+data(iris)
+result <- preProcessData(iris[, 1:4], excludeClasses = "Sepal.Length", 
+                         methods = c("center", "scale"))
+print(result$processedMat)
+}
+
 }

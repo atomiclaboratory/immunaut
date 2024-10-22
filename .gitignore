@@ -5,6 +5,7 @@
 *.Rproj.user
 *.RData
 immunaut.Rproj
+manual.pdf
 
 *.o
 *.so
