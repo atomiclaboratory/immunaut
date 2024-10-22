@@ -4,12 +4,10 @@
 \alias{is_var_empty}
 \title{Check if request variable is Empty}
 \usage{
-is_var_empty(variable, variable_name = NULL)
+is_var_empty(variable)
 }
 \arguments{
 \item{variable}{The variable to check.}
-
-\item{variable_name}{Optional; the name of the variable to log.}
 }
 \value{
 boolean TRUE if the variable is considered empty, FALSE otherwise.

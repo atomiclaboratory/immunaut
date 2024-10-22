@@ -16,6 +16,8 @@ Imports:
     plyr,
     dplyr,
     caret,
+    pROC,
+    PRROC,
     stats,
     rlang,
     Rtsne,
@@ -23,7 +25,10 @@ Imports:
     FNN,
     igraph,
     fpc,
-    mclust
+    mclust,
+    ggplot2,
+    grDevices,
+    RColorBrewer
 Depends:
 	R (>= 3.4.0)
 URL: https://github.com/atomiclaboratory/immunaut, <https://atomic-lab.org>

@@ -229,26 +229,25 @@ isNumeric <- function(x) {
 #' @title Check if request variable is Empty
 #' @description Checks if the given variable is empty and optionally logs the variable name.
 #' @param variable The variable to check.
-#' @param variable_name Optional; the name of the variable to log.
 #' @return boolean TRUE if the variable is considered empty, FALSE otherwise.
-is_var_empty <- function(variable, variable_name = NULL){
-    # Initialize is_empty as FALSE
+is_var_empty <- function(variable){
     is_empty <- FALSE
-    
-    # Check for different conditions that qualify the variable as empty
-    if(length(variable) == 0 || rlang::is_null(variable)){
+
+    if(length(variable) == 0){
         is_empty <- TRUE
-    } else if (is.character(variable) && length(variable) == 1 && variable == "") {
+    }else if(!is.null(variable) & rlang::is_empty(variable)){
         is_empty <- TRUE
-    } else if (rlang::is_empty(variable)) {
+    }else if(is.null(variable)){
         is_empty <- TRUE
     }
 
-    # Optionally print variable name
-    # if (!is.null(variable_name)) {
-    #     print(paste0("=====> INFO: Variable '", variable_name, "' is_empty: ", is_empty))
-    # }
-    
+    if(is_empty == FALSE && !is.vector(variable) && !is.data.frame(variable)){
+        print(variable)
+        if(variable == ""){
+            is_empty <- TRUE
+        }
+    }
+
     return(is_empty)
 }
 
@@ -344,16 +343,19 @@ find_optimal_resolution <- function(graph, start_resolution = 0.1, end_resolutio
     return(list(optimal_resolution = optimal_resolution, best_modularity = best_modularity, best_clusters = best_clusters))
 }
 
-#' Generate a Demo Dataset for Machine Learning
+#' Generate a Demo Dataset with Specified Number of Clusters and Overlap
 #'
-#' This function generates a demo dataset with a specified number of subjects and features, 
-#' which can be used to test machine learning algorithms such as t-SNE or clustering methods. 
+#' This function generates a demo dataset with a specified number of subjects, features, 
+#' and desired number of clusters, ensuring that the generated clusters are not too far apart 
+#' and have some degree of overlap to simulate real-world data. 
 #' The generated dataset includes demographic information (`outcome`, `age`, and `gender`), 
 #' as well as numeric features with a specified probability of missing values.
 #'
 #' @param n_subjects Integer. The number of subjects (rows) to generate. Defaults to 1000.
 #' @param n_features Integer. The number of features (columns) to generate. Defaults to 200.
 #' @param missing_prob Numeric. The probability of introducing missing values (NA) in the feature columns. Defaults to 0.1.
+#' @param desired_number_clusters Integer. The approximate number of clusters to generate in the feature space. Defaults to 3.
+#' @param cluster_overlap_sd Numeric. The standard deviation to control cluster overlap. Defaults to 15 for more overlap.
 #'
 #' @return A data frame containing the generated demo dataset, with columns:
 #' - `outcome`: A categorical variable with values "low" or "high".
@@ -362,21 +364,24 @@ find_optimal_resolution <- function(graph, start_resolution = 0.1, end_resolutio
 #' - `Feature X`: Numeric feature columns with random values and some missing data.
 #'
 #' @details
-#' The function randomly generates data for the `outcome`, `age`, and `gender` columns. 
-#' It then creates `n_features` numeric columns, introducing missing values in each 
-#' feature column with the specified probability (`missing_prob`).
+#' The function generates `n_features` numeric columns based on Gaussian clusters 
+#' with some overlap between clusters to simulate more realistic data. Missing values are 
+#' introduced in each feature column based on the `missing_prob`.
 #'
 #' @examples
 #' \dontrun{
-#' # Generate a demo dataset with 1000 subjects and 200 features
-#' demo_data <- generate_demo_data(n_subjects = 1000, n_features = 200, missing_prob = 0.1)
+#' # Generate a demo dataset with 1000 subjects, 200 features, and 3 clusters
+#' demo_data <- generate_demo_data(n_subjects = 1000, n_features = 200, 
+#'                                 desired_number_clusters = 3, 
+#'                                 cluster_overlap_sd = 15, missing_prob = 0.1)
 #' 
 #' # View the first few rows of the dataset
 #' head(demo_data)
 #' }
 #'
 #' @export
-generate_demo_data <- function(n_subjects = 1000, n_features = 200, missing_prob = 0.1) {
+generate_demo_data <- function(n_subjects = 1000, n_features = 200, missing_prob = 0.1, 
+                               desired_number_clusters = 3, cluster_overlap_sd = 15) {
   # Set seed for reproducibility
   set.seed(1337)
   
@@ -389,11 +394,23 @@ generate_demo_data <- function(n_subjects = 1000, n_features = 200, missing_prob
   age <- sample(18:90, n_subjects, replace = TRUE)
   gender <- sample(genders, n_subjects, replace = TRUE)
   
-  # Generate feature columns with random values and introduce missing values
+  # Generate cluster assignments
+  cluster_labels <- sample(seq_len(desired_number_clusters), n_subjects, replace = TRUE)
+  
+  # Generate feature columns with Gaussian Mixture Model for each cluster
   feature_data <- replicate(n_features, {
-    feature_values <- sample(c(NA, sample(0:100, 10, replace = TRUE)), n_subjects, replace = TRUE)
-    feature_values[sample(seq_len(n_subjects), size = floor(missing_prob * n_subjects))] <- NA
-    return(feature_values)
+    feature_column <- numeric(n_subjects)
+    
+    for (cluster in seq_len(desired_number_clusters)) {
+      cluster_size <- sum(cluster_labels == cluster)
+      mean_val <- runif(1, min = -20, max = 20)  # Mean closer to each other for more overlap
+      sd_val <- cluster_overlap_sd                # Standard deviation to control overlap
+      feature_column[cluster_labels == cluster] <- rnorm(cluster_size, mean = mean_val, sd = sd_val)
+    }
+    
+    # Introduce missing values
+    feature_column[sample(seq_len(n_subjects), size = floor(missing_prob * n_subjects))] <- NA
+    return(feature_column)
   })
   
   # Name the features
@@ -405,4 +422,279 @@ generate_demo_data <- function(n_subjects = 1000, n_features = 200, missing_prob
   demo_data <- data.frame(outcome = outcome, age = age, gender = gender, feature_data)
   
   return(demo_data)
+}
+
+
+#' Remove Outliers Based on Cluster Information
+#'
+#' The `remove_outliers` function removes rows from a dataset based on the presence 
+#' of outliers marked by a specific cluster ID (typically 100) in the `pandora_cluster` column.
+#' This function is meant to be used internally during downstream dataset analysis 
+#' to filter out data points that have been identified as outliers during clustering.
+#'
+#' @param dataset A data frame that includes clustering results, particularly a `pandora_cluster` column.
+#' @param settings A list of settings. Must contain the logical value `datasetAnalysisRemoveOutliersDownstream`. 
+#' If `datasetAnalysisRemoveOutliersDownstream` is TRUE, outliers (rows where `pandora_cluster == 100`) 
+#' will be removed from the dataset.
+#'
+#' @return A filtered data frame with outliers removed if applicable.
+#'
+#' @keywords internal
+#' @examples
+#' \dontrun{
+#' # Example usage
+#' dataset <- data.frame(pandora_cluster = c(1, 2, 100, 3, 100), values = 1:5)
+#' settings <- list(datasetAnalysisRemoveOutliersDownstream = TRUE)
+#' clean_data <- remove_outliers(dataset, settings)
+#' print(clean_data)
+#' }
+remove_outliers <- function(dataset, settings) {
+    if(settings$datasetAnalysisRemoveOutliersDownstream == TRUE) {
+        print("===> INFO: Trying to remove outliers from dataset")
+        if("pandora_cluster" %in% names(dataset)) {
+            if(100 %in% dataset$pandora_cluster) {
+                dataset <- dataset[dataset$pandora_cluster != 100, ]
+                print("===> INFO: Rows with pandora_cluster == 100 have been removed.")
+            } else {
+                print("===> INFO: Cluster 100 does not exist in pandora_cluster.")
+            }
+        } else {
+            print("===> INFO: No outliers detected")
+        }
+    }
+    return(dataset)
+}
+
+#' Plot Clustered t-SNE Results
+#'
+#' This function generates a t-SNE plot with cluster assignments using consistent color mappings. 
+#' It includes options for plotting points based on their t-SNE coordinates and adding cluster 
+#' labels at the cluster centroids. The plot is saved as an SVG file in a temporary directory.
+#'
+#' @param info.norm A data frame containing t-SNE coordinates (`tsne1`, `tsne2`) and cluster assignments (`pandora_cluster`) for each point.
+#' @param cluster_data A data frame containing the cluster centroids and labels, with columns `tsne1`, `tsne2`, `label`, and `pandora_cluster`.
+#' @param settings A list of settings for the plot, including:
+#'   - `theme`: The ggplot2 theme to use (e.g., `"theme_classic"`).
+#'   - `colorPalette`: The color palette to use for clusters (e.g., `"RdPu"`).
+#'   - `pointSize`: The size of points in the plot.
+#'   - `fontSize`: The font size used in the plot.
+#'   - `legendPosition`: The position of the legend (e.g., `"right"`).
+#'   - `plot_size`: The size of the plot.
+#'   - `aspect_ratio`: The aspect ratio of the plot.
+#'
+#' @return ggplot2 object representing the clustered t-SNE plot.
+#'
+#' @importFrom ggplot2 ggplot aes geom_point geom_label labs theme theme_classic scale_color_manual element_text element_rect theme_set unit
+#' @importFrom grDevices svg dev.off colorRampPalette
+#' @importFrom RColorBrewer brewer.pal
+
+#' @examples
+#' \dontrun{
+#' # Example usage
+#' plot <- plot_clustered_tsne(info.norm, cluster_data, settings)
+#' print(plot)
+#' }
+#' @export
+plot_clustered_tsne <- function(info.norm, cluster_data, settings){
+    # Ensure the theme is a valid ggplot2 theme
+    if (!exists(settings$theme, envir = asNamespace("ggplot2"))) {
+        message(paste0("Invalid ggplot2 theme: ", settings$theme, ". Using 'theme_classic' instead."))
+        settings$theme <- "theme_classic"
+    }
+    
+    # Apply the theme using ggplot2 namespace
+    theme_to_apply <- get(settings$theme, envir = asNamespace("ggplot2"))(base_size = settings$fontSize)
+    theme_set(theme_to_apply)
+
+    info.norm$pandora_cluster <- as.character(info.norm$pandora_cluster)
+    info.norm$pandora_cluster <- as.numeric(info.norm$pandora_cluster)
+
+    cluster_data$pandora_cluster <- as.character(cluster_data$pandora_cluster)
+    cluster_data$pandora_cluster <- as.numeric(cluster_data$pandora_cluster)
+
+    # Convert 'cluster' to a factor with consistent levels in both data frames
+    unique_clusters <- sort(unique(c(info.norm$pandora_cluster, cluster_data$pandora_cluster)))
+
+    info.norm$pandora_cluster <- factor(info.norm$pandora_cluster, levels = unique_clusters)
+    cluster_data$pandora_cluster <- factor(cluster_data$pandora_cluster, levels = unique_clusters)
+
+    colorsTemp <- grDevices::colorRampPalette(
+        RColorBrewer::brewer.pal(min(8, length(unique_clusters)), settings$colorPalette)
+    )(length(unique_clusters))
+
+    # Create the plot with consistent color mapping
+    plotData <- ggplot(info.norm, aes(x = tsne1, y = tsne2)) + 
+                    geom_point(aes(color = pandora_cluster), size = settings$pointSize, alpha = 0.7) +  # Color by cluster for points
+                    scale_color_manual(values = colorsTemp) +  # Use Brewer palette for consistent color scale
+                    labs(x = "t-SNE dimension 1", y = "t-SNE dimension 2", color = "Cluster") +  # Label axes and legend
+                    theme_classic(base_size = settings$fontSize) +  # Use a classic theme as base
+                    theme(legend.position = settings$legendPosition,  # Adjust legend position
+                          legend.background = element_rect(fill = "white", colour = "black"),  # Legend background
+                          legend.key.size = unit(0.5, "cm"),  # Size of legend keys
+                          legend.title = element_text(face = "bold"),  # Bold legend title
+                          plot.background = element_rect(fill = "white", colour = NA),  # White plot background
+                          axis.title.x = element_text(size = settings$fontSize * 1.2),  # Increase X axis label size
+                          axis.title.y = element_text(size = settings$fontSize * 1.2))  # Increase Y axis label size
+
+    # Adding cluster center labels with the same color mapping
+    plotData <- plotData +
+                geom_label(data = cluster_data, aes(x = tsne1, y = tsne2, label = as.character(label), color = pandora_cluster),
+                           fill = "white",  # Background color of the label; adjust as needed
+                           size = settings$fontSize / 2,  # Adjust text size within labels as needed
+                           fontface = "bold",  # Make text bold
+                           show.legend = FALSE)  # Do not show these labels in the legend
+
+    return(plotData)
+}
+
+
+#' Auto ML Model Building with Caret
+#'
+#' This function automates the process of building machine learning models using the caret package. 
+#' It supports both binary and multi-class classification and trains models based on a user-specified 
+#' list of machine learning algorithms. The function splits the dataset into training and testing sets, 
+#' trains the models using cross-validation, and computes performance metrics such as confusion matrix, 
+#' AUROC (for binary classification), and prAUC (for binary classification).
+#'
+#' @param dataset_ml A data frame containing the dataset for training. All columns except the outcome 
+#'   column should contain the features.
+#' @param outcome A string specifying the name of the outcome column in the dataset. The outcome must 
+#'   be a factor with two or more levels.
+#' @param selectedPackages A character vector specifying the caret machine learning models to train. 
+#'   For example, \code{c("nb", "rpart")}.
+#' @param selectedPartitionSplit A numeric value between 0 and 1 specifying the proportion of the dataset 
+#'   to use for training. Defaults to 0.7 (70%).
+#'
+#' @details
+#' The function handles binary and multi-class classification problems and trains models using the caret 
+#' package. It performs preprocessing (scaling, centering, and imputation of missing values), trains models 
+#' using cross-validation, and calculates performance metrics including confusion matrix, post-resampling, 
+#' and AUROC for binary classification problems.
+#'
+#' The function automatically handles splitting the data into training and testing sets using the specified 
+#' partition split. The performance metrics for binary classification problems include AUROC and prAUC. For 
+#' multi-class classification, these metrics are not computed, but confusion matrices and post-resampling 
+#' statistics are provided.
+#'
+#' @return A list where each element is a trained model corresponding to the algorithms specified in 
+#'   \code{selectedPackages}. Each element contains:
+#'   \itemize{
+#'     \item{\code{info}}: General information about the model, including resampling indices, problem type, 
+#'         and outcome mapping.
+#'     \item{\code{training}}: The trained model and variable importance.
+#'     \item{\code{predictions}}: Predictions on the test set, including processed probabilities, confusion 
+#'         matrix, and performance metrics such as AUROC and prAUC (if applicable).
+#'   }
+#'
+#' @importFrom caret train createDataPartition trainControl confusionMatrix varImp postResample
+#' @importFrom pROC roc auc
+#' @importFrom PRROC pr.curve
+#'
+#' @examples
+#' \dontrun{
+#' # Example usage:
+#' dataset_ml <- generate_demo_data(n_subjects = 1000, n_features = 200)
+#' selectedPackages <- c("nb", "rpart")
+#' outcome <- "pandora_cluster"
+#' results <- auto_simon_ml(dataset_ml, outcome, selectedPackages, 0.7)
+#' }
+#'
+#' @keywords internal
+auto_simon_ml <- function(dataset_ml, outcome, selectedPackages, selectedPartitionSplit = 0.7) {
+  set.seed(1337)  # Set seed for reproducibility
+
+  # Create an empty list to store model results
+  model_list <- list()
+
+  # Prepare data
+  outcome_col <- dataset_ml[[outcome]]
+
+  # Encode outcome to factor for classification and apply make.names to the levels
+  if (!is.factor(outcome_col)) {
+    outcome_col <- as.factor(outcome_col)
+  }
+
+  # Ensure factor levels are valid R variable names
+  levels(outcome_col) <- make.names(levels(outcome_col))
+
+  # Split the data into training and testing sets
+  trainIndex <- caret::createDataPartition(outcome_col, p = selectedPartitionSplit, list = FALSE)
+  trainData <- dataset_ml[trainIndex, ]
+  testData <- dataset_ml[-trainIndex, ]
+
+  # Determine if the problem is binary or multi-class classification
+  is_binary_classification <- length(unique(outcome_col)) == 2
+
+  # Iterate through the selected packages (models) and train them
+  for (model_name in selectedPackages) {
+    print(paste("Training model:", model_name))
+
+    # Define the control object for cross-validation
+    trainControlObj <- caret::trainControl(
+      method = "cv",  # Cross-validation
+      number = 5,     # 5-fold CV
+      savePredictions = "final",  # Save predictions for final model
+      classProbs = TRUE,  # Compute class probabilities
+      summaryFunction = if (is_binary_classification) caret::twoClassSummary else caret::multiClassSummary
+    )
+
+    # Train the model
+    trained_model <- caret::train(
+      as.formula(paste(outcome, "~ .")),
+      data = trainData,
+      method = model_name,  # e.g., "nb" for naive Bayes
+      trControl = trainControlObj,
+      metric = "ROC",  # Use ROC as a performance metric
+      preProcess = c("center", "scale", "medianImpute")  # Preprocessing
+    )
+
+    # Make predictions on the test set
+    predictions <- predict(trained_model, newdata = testData)
+    probabilities <- predict(trained_model, newdata = testData, type = "prob")
+
+    # Calculate performance metrics
+    prediction_confusion_matrix <- caret::confusionMatrix(predictions, testData[[outcome]])
+    post_resample <- caret::postResample(predictions, testData[[outcome]])
+
+    # For binary classification, calculate AUROC and prAUC
+    if (is_binary_classification) {
+      roc_obj <- pROC::roc(testData[[outcome]], probabilities[, 2])
+      auroc <- pROC::auc(roc_obj)
+      prAUC <- PRROC::pr.curve(
+        scores.class0 = probabilities[, 2],
+        weights.class0 = testData[[outcome]] == levels(testData[[outcome]])[2]
+      )$auc.integral
+    } else {
+      auroc <- NA  # AUROC isn't typically computed for multi-class, so set to NA
+      prAUC <- NA  # Likewise, prAUC isn't used for multi-class
+    }
+
+    # Store the model details in the model list
+    model_list[[model_name]] <- list(
+      info = list(
+        resampleID = trainIndex,
+        problemType = if (is_binary_classification) "Binary Classification" else "Multi-Class Classification",
+        data = trainData,
+        outcome = outcome,
+        outcome_mapping = levels(outcome_col)
+      ),
+      training = list(
+        raw = trained_model,
+        varImportance = caret::varImp(trained_model)
+      ),
+      predictions = list(
+        raw = predictions,
+        processed = probabilities,
+        prAUC = prAUC,
+        AUROC = auroc,
+        postResample = post_resample,
+        confusionMatrix = prediction_confusion_matrix
+      )
+    )
+
+    print(paste("Finished training model:", model_name))
+  }
+
+  # Return the list of models with details
+  return(model_list)
 }

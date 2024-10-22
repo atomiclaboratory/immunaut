@@ -38,7 +38,10 @@ devtools::install_github("atomiclaboratory/immunaut", subdir = 'R-package')
 ```{r example-setup, eval = TRUE}
 library("immunaut")
 
-dataset <- generate_demo_data(n_subjects = 1000, n_features = 200, missing_prob = 0.1)
+dataset <- generate_demo_data(n_subjects = 1000, n_features = 200, 
+                                desired_number_clusters = 3, 
+                              cluster_overlap_sd = 100, 
+                              missing_prob = 0.1)
 
 # Generate file header from the demo data
 file_header <- generate_file_header(dataset)
@@ -61,6 +64,12 @@ settings <- list(
 
 result <- immunaut(dataset, settings)
 
+## Use inbuild function to plot clustered t-SNE using ggplot2
+plotData <- plot_clustered_tsne(result$tsne_clust$info.norm, 
+                                result$tsne_clust$cluster_data, 
+                                result$settings)
+
+print(plotData)
 
 ```
 
@@ -72,6 +81,24 @@ settings$knn_clusters <- 50         # Number of neighbors for KNN in Louvain clu
 
 # Perform t-SNE and Louvain clustering
 result <- immunaut(dataset, settings)
+
+
+dataset_ml <- result$dataset_filtered_with_clusters
+# Remove excluded columns from dataset_ml
+dataset_ml <- dataset_ml[, !colnames(dataset_ml) %in% settings$excludedColumns]
+levels(dataset_ml[["pandora_cluster"]]) <- make.names(levels(dataset_ml[["pandora_cluster"]]))
+
+unique(dataset_ml$pandora_cluster)
+
+# Select machine learning algorithms and train models
+selectedPackages <- c("nb", "rpart")
+selectedPartitionSplit <- 0.7
+# Run auto_simon_ml
+model_results <- auto_simon_ml(dataset_ml, "pandora_cluster", selectedPackages, selectedPartitionSplit)
+
+
+
+
 
 
 

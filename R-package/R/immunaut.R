@@ -88,148 +88,148 @@ immunaut <- function(dataset, settings = list()){
         return(NULL)
     }
 
-    if(is_var_empty(settings$selectedColumns, "selectedColumns") == TRUE){
+    if(is_var_empty(settings$selectedColumns) == TRUE){
         settings$selectedColumns = NULL
     }
 
-    if(is_var_empty(settings$cutOffColumnSize, "cutOffColumnSize") == TRUE){
+    if(is_var_empty(settings$cutOffColumnSize) == TRUE){
         settings$cutOffColumnSize = 50000
     }
 
-    if(is_var_empty(settings$excludedColumns, "excludedColumns") == TRUE){
+    if(is_var_empty(settings$excludedColumns) == TRUE){
         settings$excludedColumns = NULL
     }
 
-    if(is_var_empty(settings$groupingVariables, "groupingVariables") == TRUE){
+    if(is_var_empty(settings$groupingVariables) == TRUE){
         settings$groupingVariables = NULL
     }
 
-    if(is_var_empty(settings$colorVariables, "colorVariables") == TRUE){
+    if(is_var_empty(settings$colorVariables) == TRUE){
         settings$colorVariables = NULL
     }
 
-    if(is_var_empty(settings$preProcessDataset, "preProcessDataset") == TRUE){
+    if(is_var_empty(settings$preProcessDataset) == TRUE){
         settings$preProcessDataset = NULL
     }
 
-    if(is_var_empty(settings$fontSize, "fontSize") == TRUE){
+    if(is_var_empty(settings$fontSize) == TRUE){
         settings$fontSize <- 12
     }
 
-    if(is_var_empty(settings$pointSize, "pointSize") == TRUE){
+    if(is_var_empty(settings$pointSize) == TRUE){
         settings$pointSize <- 1.5
     }
 
-    if(is_var_empty(settings$theme, "theme") == TRUE){
+    if(is_var_empty(settings$theme) == TRUE){
         settings$theme <- "theme_gray"
     }
 
-    if(is_var_empty(settings$colorPalette, "colorPalette") == TRUE){
+    if(is_var_empty(settings$colorPalette) == TRUE){
         settings$colorPalette <- "RdPu"
     }
 
-    if(is_var_empty(settings$aspect_ratio, "aspect_ratio") == TRUE){
+    if(is_var_empty(settings$aspect_ratio) == TRUE){
         settings$aspect_ratio <- 1
     }
 
-    if(is_var_empty(settings$clusterType, "clusterType") == TRUE){
+    if(is_var_empty(settings$clusterType) == TRUE){
         settings$clusterType <- "Louvain"
     }
 
-    if(is_var_empty(settings$removeNA, "removeNA") == TRUE){
+    if(is_var_empty(settings$removeNA) == TRUE){
         settings$removeNA = FALSE
     }
 
-    if(is_var_empty(settings$datasetAnalysisGrouped, "datasetAnalysisGrouped") == TRUE){
+    if(is_var_empty(settings$datasetAnalysisGrouped) == TRUE){
         settings$datasetAnalysisGrouped = FALSE
     }
 
-    if(is_var_empty(settings$plot_size, "plot_size") == TRUE){
+    if(is_var_empty(settings$plot_size) == TRUE){
         settings$plot_size <- 12
     }
 
-    if(is_var_empty(settings$knn_clusters, "knn_clusters") == TRUE){
+    if(is_var_empty(settings$knn_clusters) == TRUE){
         settings$knn_clusters <- 250
     }
 
-    if(is_var_empty(settings$perplexity, "perplexity") == TRUE){
+    if(is_var_empty(settings$perplexity) == TRUE){
         settings$perplexity <- NULL
     }
-    if(is_var_empty(settings$exaggeration_factor, "exaggeration_factor") == TRUE){
+    if(is_var_empty(settings$exaggeration_factor) == TRUE){
         settings$exaggeration_factor <- NULL
     }
-    if(is_var_empty(settings$max_iter, "max_iter") == TRUE){
+    if(is_var_empty(settings$max_iter) == TRUE){
         settings$max_iter <- NULL
     }
-    if(is_var_empty(settings$theta, "theta") == TRUE){
+    if(is_var_empty(settings$theta) == TRUE){
         settings$theta <- NULL
     }
-    if(is_var_empty(settings$eta, "eta") == TRUE){
+    if(is_var_empty(settings$eta) == TRUE){
         settings$eta <- NULL
     }
 
-    if(is_var_empty(settings$clustLinkage, "clustLinkage") == TRUE){
+    if(is_var_empty(settings$clustLinkage) == TRUE){
         settings$clustLinkage = "ward.D2"
     }
 
-    if(is_var_empty(settings$clustGroups, "clustGroups") == TRUE){
+    if(is_var_empty(settings$clustGroups) == TRUE){
         settings$clustGroups = 9
     }
 
     ## OUTLIER DETECTION START
-    if(is_var_empty(settings$distMethod, "distMethod") == TRUE){
+    if(is_var_empty(settings$distMethod) == TRUE){
         settings$distMethod = "euclidean"
     }
 
-    if(is_var_empty(settings$minPtsAdjustmentFactor, "minPtsAdjustmentFactor") == TRUE){
+    if(is_var_empty(settings$minPtsAdjustmentFactor) == TRUE){
         settings$minPtsAdjustmentFactor = 1
     }
 
-    if(is_var_empty(settings$epsQuantile, "epsQuantile") == TRUE){
+    if(is_var_empty(settings$epsQuantile) == TRUE){
         settings$epsQuantile = 0.9
     }
 
-    if(is_var_empty(settings$assignOutliers, "assignOutliers") == TRUE){
+    if(is_var_empty(settings$assignOutliers) == TRUE){
         settings$assignOutliers = TRUE
     }
     
-    if(is_var_empty(settings$excludeOutliers, "excludeOutliers") == TRUE){
+    if(is_var_empty(settings$excludeOutliers) == TRUE){
         settings$excludeOutliers = TRUE
     }
 
     ## OUTLIER DETECTION END
 
-    if(is_var_empty(settings$legendPosition, "legendPosition") == TRUE){
+    if(is_var_empty(settings$legendPosition) == TRUE){
         settings$legendPosition = "right"
     }
 
     ## dataset analysis settings
-    if(is_var_empty(settings$datasetAnalysisClustLinkage, "datasetAnalysisClustLinkage") == TRUE){
+    if(is_var_empty(settings$datasetAnalysisClustLinkage) == TRUE){
         settings$datasetAnalysisClustLinkage = "ward.D2"
     }
 
-    if(is_var_empty(settings$datasetAnalysisType, "datasetAnalysisType") == TRUE){
+    if(is_var_empty(settings$datasetAnalysisType) == TRUE){
         settings$datasetAnalysisType = "heatmap"
     }
 
-    if(is_var_empty(settings$datasetAnalysisRemoveOutliersDownstream, "datasetAnalysisRemoveOutliersDownstream") == TRUE){
+    if(is_var_empty(settings$datasetAnalysisRemoveOutliersDownstream) == TRUE){
         settings$datasetAnalysisRemoveOutliersDownstream = TRUE
     }
 
 
-    if(is_var_empty(settings$datasetAnalysisSortColumn, "datasetAnalysisSortColumn") == TRUE){
+    if(is_var_empty(settings$datasetAnalysisSortColumn) == TRUE){
         settings$datasetAnalysisSortColumn = "cluster"
     }
 
-    if(is_var_empty(settings$datasetAnalysisClustOrdering, "datasetAnalysisClustOrdering") == TRUE){
+    if(is_var_empty(settings$datasetAnalysisClustOrdering) == TRUE){
         settings$datasetAnalysisClustOrdering = 1
     }
 
-    if(is_var_empty(settings$anyNAValues, "anyNAValues") == TRUE){
+    if(is_var_empty(settings$anyNAValues) == TRUE){
         settings$anyNAValues <- FALSE
     }
     
-    if(is_var_empty(settings$categoricalVariables, "categoricalVariables") == TRUE){
+    if(is_var_empty(settings$categoricalVariables) == TRUE){
         settings$categoricalVariables <- FALSE
     }
 
@@ -244,8 +244,7 @@ immunaut <- function(dataset, settings = list()){
 
     # If no columns are selected, select by cut of size
     if(is_null(settings$selectedColumns)) {
-        selectedColumns <- settings$fileHeader %>% arrange(unique_count) %>% arrange(position) %>% select(remapped)
-        settings$selectedColumns <- tail(selectedColumns$remapped, n=settings$cutOffColumnSize)
+        settings$selectedColumns <- utils::tail(selectedColumns$remapped, n=settings$cutOffColumnSize)
     }
 
     # Remove grouping variables from selectedColumns and excludedColumns
@@ -267,7 +266,8 @@ immunaut <- function(dataset, settings = list()){
         settings$selectedColumns <-  setdiff(settings$selectedColumns, settings$excludedColumns)
         # settings$selectedColumns <- settings$selectedColumns[settings$selectedColumns %!in% settings$excludedColumns]
     }
-    
+
+
 
 	# 0. Remove any undefined columns from initial dataset
 	dataset_filtered <- dataset[, names(dataset) %in% c(settings$selectedColumns, settings$groupingVariables)]
@@ -327,20 +327,32 @@ immunaut <- function(dataset, settings = list()){
        tsne_clust <- cluster_tsne_knn_louvain(tsne_calc$info.norm, tsne_calc$tsne.norm, settings)
     }
 
-
-
     ## Get clusters from tsne_clust$info.norm[["pandora_cluster"]] and add it to original dataset in "dataset" variable
-    dastaset_with_clusters <- dataset
-    if(nrow(dastaset_with_clusters) == nrow(tsne_clust$info.norm)){
-        dastaset_with_clusters$pandora_cluster <- tsne_clust$info.norm$pandora_cluster
+    dataset_with_clusters <- dataset
+    if(nrow(dataset_with_clusters) == nrow(tsne_clust$info.norm)){
+        dataset_with_clusters$pandora_cluster <- tsne_clust$info.norm$pandora_cluster
     }
+
+    dataset_filtered_with_clusters <- dataset_filtered
+    if(nrow(dataset_filtered_with_clusters) == nrow(tsne_clust$info.norm)){
+        dataset_filtered_with_clusters$pandora_cluster <- tsne_clust$info.norm$pandora_cluster
+    }
+    
+    dataset_with_clusters <- remove_outliers(dataset_with_clusters, settings)
+    data_for_heatmap <- remove_outliers(tsne_clust$info.norm, settings)
 
     results <- list(
         tsne_calc = tsne_calc,
         tsne_clust = tsne_clust,
         settings = settings,
-        dastaset_with_clusters = dastaset_with_clusters,
-        num_samples = nrow(dastaset_with_clusters)
+        
+        dataset = dataset,
+        dataset_with_clusters = dataset_with_clusters,
+        dataset_filtered = dataset_filtered,
+        dataset_filtered_with_clusters = dataset_filtered_with_clusters,
+
+        data_for_heatmap = data_for_heatmap,
+        num_samples = nrow(dataset_with_clusters)
     )
 
     return(results)

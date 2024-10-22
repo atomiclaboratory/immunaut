@@ -2,9 +2,15 @@
 % Please edit documentation in R/utils.R
 \name{generate_demo_data}
 \alias{generate_demo_data}
-\title{Generate a Demo Dataset for Machine Learning}
+\title{Generate a Demo Dataset with Specified Number of Clusters and Overlap}
 \usage{
-generate_demo_data(n_subjects = 1000, n_features = 200, missing_prob = 0.1)
+generate_demo_data(
+  n_subjects = 1000,
+  n_features = 200,
+  missing_prob = 0.1,
+  desired_number_clusters = 3,
+  cluster_overlap_sd = 15
+)
 }
 \arguments{
 \item{n_subjects}{Integer. The number of subjects (rows) to generate. Defaults to 1000.}
@@ -12,6 +18,10 @@ generate_demo_data(n_subjects = 1000, n_features = 200, missing_prob = 0.1)
 \item{n_features}{Integer. The number of features (columns) to generate. Defaults to 200.}
 
 \item{missing_prob}{Numeric. The probability of introducing missing values (NA) in the feature columns. Defaults to 0.1.}
+
+\item{desired_number_clusters}{Integer. The approximate number of clusters to generate in the feature space. Defaults to 3.}
+
+\item{cluster_overlap_sd}{Numeric. The standard deviation to control cluster overlap. Defaults to 15 for more overlap.}
 }
 \value{
 A data frame containing the generated demo dataset, with columns:
@@ -23,20 +33,23 @@ A data frame containing the generated demo dataset, with columns:
 }
 }
 \description{
-This function generates a demo dataset with a specified number of subjects and features,
-which can be used to test machine learning algorithms such as t-SNE or clustering methods.
+This function generates a demo dataset with a specified number of subjects, features,
+and desired number of clusters, ensuring that the generated clusters are not too far apart
+and have some degree of overlap to simulate real-world data.
 The generated dataset includes demographic information (\code{outcome}, \code{age}, and \code{gender}),
 as well as numeric features with a specified probability of missing values.
 }
 \details{
-The function randomly generates data for the \code{outcome}, \code{age}, and \code{gender} columns.
-It then creates \code{n_features} numeric columns, introducing missing values in each
-feature column with the specified probability (\code{missing_prob}).
+The function generates \code{n_features} numeric columns based on Gaussian clusters
+with some overlap between clusters to simulate more realistic data. Missing values are
+introduced in each feature column based on the \code{missing_prob}.
 }
 \examples{
 \dontrun{
-# Generate a demo dataset with 1000 subjects and 200 features
-demo_data <- generate_demo_data(n_subjects = 1000, n_features = 200, missing_prob = 0.1)
+# Generate a demo dataset with 1000 subjects, 200 features, and 3 clusters
+demo_data <- generate_demo_data(n_subjects = 1000, n_features = 200, 
+                                desired_number_clusters = 3, 
+                                cluster_overlap_sd = 15, missing_prob = 0.1)
 
 # View the first few rows of the dataset
 head(demo_data)
