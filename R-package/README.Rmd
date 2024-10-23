@@ -141,5 +141,5 @@ settings$clustLinkage <- "ward.D2"
 settings$clustGroups <- 3
 
 # Run t-SNE and Mclust clustering
-mclust_result <- immunaut(dataset, settings)
+hierarchical_result <- immunaut(dataset, settings)
 ```

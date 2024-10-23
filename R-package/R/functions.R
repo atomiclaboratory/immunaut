@@ -445,20 +445,26 @@ cluster_tsne_hierarchical <- function(info.norm, tsne.norm, settings) {
     } else {
         message("Including outliers in hierarchical clustering.")
     }
+
     if (length(indices_for_clustering) >= 2) {
         dist_matrix <- dist(data_for_clustering, method = settings$distMethod)
         hc.norm <- hclust(dist_matrix, method = settings$clustLinkage)
         h_clusters <- cutree(hc.norm, settings$clustGroups)
 
+        # Ensure the cluster labels are part of the factor levels before assignment
+        h_clusters_factor <- as.factor(h_clusters)
+        levels(info.norm$pandora_cluster) <- union(levels(info.norm$pandora_cluster), levels(h_clusters_factor))
+
+        # Assign hierarchical clustering results back to info.norm$pandora_cluster
         if(length(indices_for_clustering) < nrow(tsne_data)){
-            info.norm$pandora_cluster[indices_for_clustering] <- as.factor(h_clusters)
-        }else{
-            info.norm$pandora_cluster <- as.factor(h_clusters)
+            info.norm$pandora_cluster[indices_for_clustering] <- h_clusters_factor
+        } else {
+            info.norm$pandora_cluster <- h_clusters_factor
         }
 
         # Replace NA values with 100 specifically
         na_indices <- is.na(info.norm$pandora_cluster)
-        info.norm$pandora_cluster[na_indices] <- 100
+        info.norm$pandora_cluster[na_indices] <- "100"
 
         # Calculate distances based on the exact data used for clustering
         distance_matrix <- dist(data_for_clustering)
@@ -491,36 +497,41 @@ cluster_tsne_hierarchical <- function(info.norm, tsne.norm, settings) {
     info.norm$pandora_cluster <- factor(info.norm$pandora_cluster, levels = unique(as.character(info.norm$pandora_cluster)))
 
     # Compute cluster centers based on final clustering results
-	# Compute median values for all clusters
-	lc.cent <- info.norm %>%
-	    group_by(pandora_cluster) %>%
-	    summarise(
-	        tsne1 = median(tsne1, na.rm = TRUE),
-	        tsne2 = median(tsne2, na.rm = TRUE),
-	        .groups = 'drop'
-	    )
+    # Compute median values for all clusters
+    lc.cent <- info.norm %>%
+        group_by(pandora_cluster) %>%
+        summarise(
+            tsne1 = median(tsne1, na.rm = TRUE),
+            tsne2 = median(tsne2, na.rm = TRUE),
+            .groups = 'drop'
+        )
 
-	# Adjust "100" cluster separately (outliers)
-	lc.cent <- lc.cent %>%
-	    mutate(
-	        tsne1 = ifelse(pandora_cluster == "100", tsne1 + settings$pointSize / 2, tsne1),
-	        tsne2 = ifelse(pandora_cluster == "100", tsne2 + settings$pointSize / 2, tsne2)
-	    )
+    # Adjust "100" cluster separately (outliers)
+    lc.cent <- lc.cent %>%
+        mutate(
+            tsne1 = ifelse(pandora_cluster == "100", tsne1 + settings$pointSize / 2, tsne1),
+            tsne2 = ifelse(pandora_cluster == "100", tsne2 + settings$pointSize / 2, tsne2)
+        )
+
     # Compute cluster sizes (number of samples per cluster)
     cluster_sizes <- info.norm %>%
-      group_by(pandora_cluster) %>%
-      summarise(num_samples = n(), .groups = 'drop') # Calculate the number of samples in each cluster
+        group_by(pandora_cluster) %>%
+        summarise(num_samples = n(), .groups = 'drop') # Calculate the number of samples in each cluster
+
     # Join the cluster sizes back to the lc.cent dataframe to include the number of samples per cluster
     lc.cent <- lc.cent %>%
-      left_join(cluster_sizes, by = "pandora_cluster")
+        left_join(cluster_sizes, by = "pandora_cluster")
+
     # Create the 'label' column that combines cluster ID and number of samples
     lc.cent <- lc.cent %>%
-      mutate(label = paste(pandora_cluster, "-", num_samples))
+        mutate(label = paste(pandora_cluster, "-", num_samples))
+
     # Drop the 'num_samples' column if you no longer need it
     lc.cent <- select(lc.cent, -num_samples)
 
     return(list(info.norm = info.norm, cluster_data = lc.cent, avg_silhouette_score = avg_silhouette_score))
 }
+
 
 
 #' Apply Mclust Clustering on t-SNE Results
