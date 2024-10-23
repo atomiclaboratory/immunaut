@@ -39,8 +39,8 @@ devtools::install_github("atomiclaboratory/immunaut", subdir = 'R-package')
 library("immunaut")
 
 dataset <- generate_demo_data(n_subjects = 1000, n_features = 200, 
-                                desired_number_clusters = 3, 
-                              cluster_overlap_sd = 100, 
+                                desired_number_clusters = 4, ## Very approximate
+                              cluster_overlap_sd = 35, 
                               missing_prob = 0.1)
 
 # Generate file header from the demo data
@@ -52,35 +52,26 @@ settings <- list(
   selectedColumns = colnames(dataset),
   
   excludedColumns = c("outcome", "age", "gender"),
-  preProcessDataset = c("scale", "center", "medianImpute"),
-  
-  clusterType = "Louvain",  # Clustering method
-  knn_clusters = 50,        # Number of neighbors for KNN in Louvain clustering
-  
-  pointSize = 2,           # Size of points in plots
-  fontSize = 12,           # Font size for plots
-  colorPalette = "RdPu"   # Color palette for plots
+  preProcessDataset = c("scale", "center", "medianImpute")
 )
-
-result <- immunaut(dataset, settings)
-
-## Use inbuild function to plot clustered t-SNE using ggplot2
-plotData <- plot_clustered_tsne(result$tsne_clust$info.norm, 
-                                result$tsne_clust$cluster_data, 
-                                result$settings)
-
-print(plotData)
 
 ```
 
 ## Example 1: Perform t-SNE and Louvain Clustering
 ```{r example-1, message=FALSE, warning=FALSE}
-# Set the clustering method to Louvain
-settings$clusterType <- "Louvain"   
-settings$knn_clusters <- 50         # Number of neighbors for KNN in Louvain clustering
 
-# Perform t-SNE and Louvain clustering
 result <- immunaut(dataset, settings)
+
+## Plot clustered t-SNE using ggplot2
+p <- plot_clustered_tsne(result$tsne_clust$info.norm, 
+                                result$tsne_clust$cluster_data, 
+                                result$settings)
+print(p)
+
+dataset_ml <- result$dataset$original
+## Should we remove any outliers, if any detected?
+dataset_ml <- remove_outliers(dataset_ml, result$settings)
+dataset_ml$outcome <- result$clusters
 
 
 dataset_ml <- result$dataset_filtered_with_clusters
@@ -93,6 +84,12 @@ unique(dataset_ml$pandora_cluster)
 # Select machine learning algorithms and train models
 selectedPackages <- c("nb", "rpart")
 selectedPartitionSplit <- 0.7
+
+settings_ml <- list(
+  outcome = file_header,
+  selectedPackages = c("nb", "rpart"),
+  selectedPartitionSplit = 0.7
+)
 # Run auto_simon_ml
 model_results <- auto_simon_ml(dataset_ml, "pandora_cluster", selectedPackages, selectedPartitionSplit)
 

@@ -303,7 +303,9 @@ cluster_tsne_knn_louvain <- function(info.norm, tsne.norm, settings){
 
     # Debugging: Check for NA values in pandora_cluster
     num_na_clusters <- sum(is.na(info.norm$pandora_cluster))
-    print(paste0("===> INFO: Number of NA clusters in pandora_cluster: ", num_na_clusters))
+    if(num_na_clusters > 0) {
+        warning(paste0("===> INFO: Number of NA clusters in pandora_cluster: ", num_na_clusters))    
+    }
 
     # Handle NA clusters by assigning them to cluster "100"
     na_indices <- is.na(info.norm$pandora_cluster)
@@ -630,7 +632,7 @@ cluster_tsne_mclust <- function(info.norm, tsne.norm, settings) {
         }
 
         if(length(noise_indices) > 0){
-            print(paste("====> Noise indices: ", length(noise_indices)))
+            message(paste("====> Noise indices: ", length(noise_indices)))
             if(!"100" %in% levels(info.norm$pandora_cluster)) {
                 info.norm$pandora_cluster <- factor(info.norm$pandora_cluster, levels = c(levels(info.norm$pandora_cluster), "100"))
                 info.norm$pandora_cluster[noise_indices] <- "100"
@@ -771,4 +773,231 @@ cluster_tsne_density <- function(info.norm, tsne.norm, settings){
 
 
 	return(list(info.norm = info.norm, cluster_data = lc.cent, avg_silhouette_score = avg_silhouette_score))
+}
+
+#' Automated Machine Learning Model Building
+#'
+#' This function automates the process of building machine learning models using the caret package. 
+#' It supports both binary and multi-class classification and allows users to specify a list of 
+#' machine learning algorithms to be trained on the dataset. The function splits the dataset into 
+#' training and testing sets, applies preprocessing steps, and trains models using cross-validation.
+#' It computes relevant performance metrics such as confusion matrix, AUROC (for binary classification), 
+#' and prAUC (for binary classification).
+#'
+#' @param dataset_ml A data frame containing the dataset for training. All columns except the outcome 
+#'   column should contain the features.
+#' @param settings A list containing the following parameters:
+#'   \itemize{
+#'     \item{\code{outcome}}: A string specifying the name of the outcome column in \code{dataset_ml}. Defaults to "immunaut" if not provided.
+#'     \item{\code{excludedColumns}}: A vector of column names to be excluded from the training data. Defaults to \code{NULL}.
+#'     \item{\code{preProcessDataset}}: A vector of preprocessing steps to be applied (e.g., \code{c("center", "scale", "medianImpute")}). Defaults to \code{NULL}.
+#'     \item{\code{selectedPartitionSplit}}: A numeric value specifying the proportion of data to be used for training. Must be between 0 and 1. Defaults to 0.7.
+#'     \item{\code{selectedPackages}}: A character vector specifying the machine learning algorithms to be used for training (e.g., \code{"nb"}, \code{"rpart"}). Defaults to \code{c("nb", "rpart")}.
+#'   }
+#'
+#' @details
+#' The function performs preprocessing (e.g., centering, scaling, and imputation of missing values) on the dataset based on the provided settings. 
+#' It splits the data into training and testing sets using the specified partition, trains models using cross-validation, and computes performance metrics.
+#' 
+#' For binary classification problems, the function calculates AUROC and prAUC. For multi-class classification, it calculates macro-averaged AUROC, though prAUC is not used.
+#' 
+#' The function returns a list of trained models along with their performance metrics, including confusion matrix, variable importance, and post-resample metrics.
+#'
+#' @return A list where each element corresponds to a trained model for one of the algorithms specified in 
+#'   \code{settings$selectedPackages}. Each element contains:
+#'   \itemize{
+#'     \item{\code{info}}: General information about the model, including resampling indices, problem type, 
+#'         and outcome mapping.
+#'     \item{\code{training}}: The trained model object and variable importance.
+#'     \item{\code{predictions}}: Predictions on the test set, including probabilities, confusion matrix, 
+#'         post-resample statistics, AUROC (for binary classification), and prAUC (for binary classification).
+#'   }
+#'
+#' @importFrom caret train createDataPartition trainControl confusionMatrix varImp postResample
+#' @importFrom pROC roc auc
+#' @importFrom PRROC pr.curve
+#' @importFrom stats as.formula
+#'
+#' @examples
+#' \dontrun{
+#' # Example usage:
+#' dataset_ml <- generate_demo_data(n_subjects = 1000, n_features = 200)
+#' settings <- list(
+#'   selectedPackages = c("nb", "rpart"),
+#'   selectedPartitionSplit = 0.7
+#' )
+#' results <- auto_simon_ml(dataset_ml, settings)
+#' }
+#'
+#' @export
+auto_simon_ml <- function(dataset_ml, settings) {
+    set.seed(1337)  # Set seed for reproducibility
+    
+    if (is_var_empty(settings$outcome) == TRUE) {
+        settings$outcome = "immunaut"
+    }
+
+    if (is_var_empty(settings$excludedColumns) == TRUE) {
+        settings$excludedColumns = NULL
+    }
+
+    if (is_var_empty(settings$preProcessDataset) == TRUE) {
+        settings$preProcessDataset = NULL
+    }
+    if (is_var_empty(settings$selectedPartitionSplit) == TRUE) {
+        settings$selectedPartitionSplit = 0.7
+    }
+    if (is_var_empty(settings$selectedPackages) == TRUE) {
+        settings$selectedPackages = c("nb", "rpart")
+    }
+    
+    ## If the outcome column is not found, return an error
+    if (!settings$outcome %in% colnames(dataset_ml)) {
+        stop(paste(
+            "Outcome column",
+            settings$outcome,
+            "not found in the dataset."
+        ))
+    }
+
+    ##  Exclude columns from the dataset if specified
+    if (!is.null(settings$excludedColumns)) {
+        dataset_ml <- dataset_ml[, !colnames(dataset_ml) %in% settings$excludedColumns]
+    }
+    
+    ## If no packages are selected, return an error
+    if (length(settings$selectedPackages) == 0) {
+        stop("No machine learning packages selected for training.")
+    }
+    
+    ## If the selected partition split is invalid, return an error
+    if (settings$selectedPartitionSplit <= 0 ||
+        settings$selectedPartitionSplit >= 1) {
+        stop("Invalid partition split value. Please choose a value between 0 and 1.")
+    }
+
+    ## Make sure outcome levels are valid
+    levels(dataset_ml[[settings$outcome]]) <- make.names(levels(dataset_ml[[settings$outcome]]))
+    
+    # Create an empty list to store model results
+    model_list <- list()
+    
+    # Prepare data
+    outcome_col <- dataset_ml[[settings$outcome]]
+    
+    # Encode outcome to factor for classification and apply make.names to the levels
+    if (!is.factor(outcome_col)) {
+        outcome_col <- as.factor(outcome_col)
+    }
+    
+    # Ensure factor levels are valid R variable names
+    levels(outcome_col) <- make.names(levels(outcome_col))
+    
+    # Split the data into training and testing sets
+    trainIndex <-
+        caret::createDataPartition(outcome_col,
+                                   p = settings$selectedPartitionSplit,
+                                   list = FALSE)
+    trainData <- dataset_ml[trainIndex,]
+    testData <- dataset_ml[-trainIndex,]
+    
+    # Determine if the problem is binary or multi-class classification
+    is_binary_classification <- length(unique(outcome_col)) == 2
+    
+    
+    # Iterate through the selected packages (models) and train them
+    for (model_name in settings$selectedPackages) {
+        message(paste("===> INFO: Training model:", model_name))
+        
+        # Define the control object for cross-validation
+        trainControlObj <- caret::trainControl(
+            method = "cv",
+            # Cross-validation
+            number = 5,
+            # 5-fold CV
+            savePredictions = "final",
+            # Save predictions for final model
+            classProbs = TRUE,
+            # Compute class probabilities
+            summaryFunction = if (is_binary_classification)
+                caret::twoClassSummary
+            else
+                caret::multiClassSummary
+        )
+        
+        # Train the model
+        trained_model <- caret::train(
+            as.formula(paste(settings$outcome, "~ .")),
+            data = trainData,
+            method = model_name,
+            # e.g., "nb" for naive Bayes
+            trControl = trainControlObj,
+            metric = "ROC",
+            # Use ROC as a performance metric
+            preProcess = settings$preProcessDataset
+            
+        )
+        
+        # Make predictions on the test set
+        predictions <- predict(trained_model, newdata = testData)
+        probabilities <-
+            predict(trained_model, newdata = testData, type = "prob")
+        
+        # Calculate performance metrics
+        prediction_confusion_matrix <-
+            caret::confusionMatrix(predictions, testData[[settings$outcome]])
+        post_resample <-
+            caret::postResample(predictions, testData[[settings$outcome]])
+        
+        # For binary classification, calculate AUROC and prAUC
+        if (is_binary_classification) {
+            roc_obj <- pROC::roc(testData[[settings$outcome]], probabilities[, 2])
+            auroc <- pROC::auc(roc_obj)
+            prAUC <- PRROC::pr.curve(
+                scores.class0 = probabilities[, 2],
+                weights.class0 = testData[[settings$outcome]] == levels(testData[[settings$outcome]])[2]
+            )$auc.integral
+        } else {
+            # Macro-Averaged AUROC for multi-class classification
+            roc_list <-
+                lapply(levels(testData[[settings$outcome]]), function(cls) {
+                    pROC::roc(testData[[settings$outcome]] == cls, probabilities[, cls])
+                })
+            auroc <-
+                mean(sapply(roc_list, pROC::auc))  # Macro average
+            prAUC <-
+                NA  # Likewise, prAUC isn't used for multi-class
+        }
+        
+        # Store the model details in the model list
+        model_list[[model_name]] <- list(
+            info = list(
+                resampleID = trainIndex,
+                problemType = if (is_binary_classification)
+                    "Binary Classification"
+                else
+                    "Multi-Class Classification",
+                data = trainData,
+                outcome = settings$outcome,
+                outcome_mapping = levels(outcome_col)
+            ),
+            training = list(
+                raw = trained_model,
+                varImportance = caret::varImp(trained_model)
+            ),
+            predictions = list(
+                raw = predictions,
+                processed = probabilities,
+                prAUC = prAUC,
+                AUROC = auroc,
+                postResample = post_resample,
+                confusionMatrix = prediction_confusion_matrix
+            )
+        )
+        
+        message(paste("===> INFO: Finished training model:", model_name))
+    }
+    
+    # Return the list of models with details
+    return(model_list)
 }

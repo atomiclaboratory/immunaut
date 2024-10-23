@@ -45,7 +45,7 @@ contain numeric columns for dimensionality reduction and clustering.}
 \item{legendPosition}{Character, position of the legend in plots (e.g., "right", "bottom"). Defaults to "right".}
 \item{datasetAnalysisClustLinkage}{Character, linkage method for dataset-level analysis. Defaults to "ward.D2".}
 \item{datasetAnalysisType}{Character, type of dataset analysis (e.g., "heatmap"). Defaults to "heatmap".}
-\item{datasetAnalysisRemoveOutliersDownstream}{Logical, whether to remove outliers during downstream dataset analysis. Defaults to TRUE.}
+\item{datasetAnalysisRemoveOutliersDownstream}{Logical, whether to remove outliers during downstream dataset analysis (ML). Defaults to FALSE.}
 \item{datasetAnalysisSortColumn}{Character, the column used to sort dataset analysis results. Defaults to "cluster".}
 \item{datasetAnalysisClustOrdering}{Numeric, the order of clusters for analysis. Defaults to 1.}
 \item{anyNAValues}{Logical, whether the dataset contains NA values. Defaults to FALSE.}

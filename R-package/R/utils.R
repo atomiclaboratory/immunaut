@@ -129,12 +129,11 @@ preProcessData <- function(data, outcome, excludeClasses, methods = c("center", 
     methods_sorted <- methods_sorted$value
 
     transformations <- paste(methods_sorted, sep=",", collapse = ",")
-    message <- paste0("===> INFO: Pre-processing transformation sorted (",transformations,") \r\n")
-    cat(message)
+
+    message(paste0("===> INFO: Pre-processing transformation sorted (",transformations,")"))
 
     if(length(colnames(dataset)) < 2){
-        message <- paste0("===> INFO: Pre-processing less than 2 columns detected removing some preprocessing methods\r\n")
-        cat(message)
+        message(paste0("===> INFO: Pre-processing less than 2 columns detected removing some preprocessing methods"))
         return(NULL)
     }
 
@@ -151,8 +150,7 @@ preProcessData <- function(data, outcome, excludeClasses, methods = c("center", 
         # summarize the transformed dataset
         processedMat[excludeClasses] <- data[excludeClasses]
     }
-    message <- paste0("===> INFO: Pre-processing done!\r\n")
-    cat(message)
+    message(paste0("===> INFO: Pre-processing done!"))
     
     return(list(processedMat = processedMat, preprocessParams = preprocessParams))
 }
@@ -322,7 +320,7 @@ find_optimal_resolution <- function(graph, start_resolution = 0.1, end_resolutio
         lc <- igraph::cluster_louvain(graph, resolution = res)  # Perform Louvain clustering
         modularity_value <- igraph::modularity(lc)  # Calculate modularity
         num_clusters <- length(unique(igraph::membership(lc)))  # Get the number of clusters
-        print(paste0("====> Clusters detected: ", num_clusters, " Resolution: ", res, " with modularity: ", modularity_value))
+        message(paste0("====> Clusters detected: ", num_clusters, " Resolution: ", res, " with modularity: ", modularity_value))
         
         # Check if modularity is above threshold and the number of clusters is within the target range
         if (modularity_value >= min_modularity && num_clusters >= target_clusters_range[1] && num_clusters <= target_clusters_range[2]) {
@@ -403,9 +401,9 @@ generate_demo_data <- function(n_subjects = 1000, n_features = 200, missing_prob
     
     for (cluster in seq_len(desired_number_clusters)) {
       cluster_size <- sum(cluster_labels == cluster)
-      mean_val <- runif(1, min = -20, max = 20)  # Mean closer to each other for more overlap
+      mean_val <- stats::runif(1, min = -20, max = 20)  # Mean closer to each other for more overlap
       sd_val <- cluster_overlap_sd                # Standard deviation to control overlap
-      feature_column[cluster_labels == cluster] <- rnorm(cluster_size, mean = mean_val, sd = sd_val)
+      feature_column[cluster_labels == cluster] <- stats::rnorm(cluster_size, mean = mean_val, sd = sd_val)
     }
     
     # Introduce missing values
@@ -519,7 +517,7 @@ plot_clustered_tsne <- function(info.norm, cluster_data, settings){
     cluster_data$pandora_cluster <- factor(cluster_data$pandora_cluster, levels = unique_clusters)
 
     colorsTemp <- grDevices::colorRampPalette(
-        RColorBrewer::brewer.pal(min(8, length(unique_clusters)), settings$colorPalette)
+      RColorBrewer::brewer.pal(min(8, max(3, length(unique_clusters))), settings$colorPalette)
     )(length(unique_clusters))
 
     # Create the plot with consistent color mapping
@@ -545,156 +543,4 @@ plot_clustered_tsne <- function(info.norm, cluster_data, settings){
                            show.legend = FALSE)  # Do not show these labels in the legend
 
     return(plotData)
-}
-
-
-#' Auto ML Model Building with Caret
-#'
-#' This function automates the process of building machine learning models using the caret package. 
-#' It supports both binary and multi-class classification and trains models based on a user-specified 
-#' list of machine learning algorithms. The function splits the dataset into training and testing sets, 
-#' trains the models using cross-validation, and computes performance metrics such as confusion matrix, 
-#' AUROC (for binary classification), and prAUC (for binary classification).
-#'
-#' @param dataset_ml A data frame containing the dataset for training. All columns except the outcome 
-#'   column should contain the features.
-#' @param outcome A string specifying the name of the outcome column in the dataset. The outcome must 
-#'   be a factor with two or more levels.
-#' @param selectedPackages A character vector specifying the caret machine learning models to train. 
-#'   For example, \code{c("nb", "rpart")}.
-#' @param selectedPartitionSplit A numeric value between 0 and 1 specifying the proportion of the dataset 
-#'   to use for training. Defaults to 0.7 (70%).
-#'
-#' @details
-#' The function handles binary and multi-class classification problems and trains models using the caret 
-#' package. It performs preprocessing (scaling, centering, and imputation of missing values), trains models 
-#' using cross-validation, and calculates performance metrics including confusion matrix, post-resampling, 
-#' and AUROC for binary classification problems.
-#'
-#' The function automatically handles splitting the data into training and testing sets using the specified 
-#' partition split. The performance metrics for binary classification problems include AUROC and prAUC. For 
-#' multi-class classification, these metrics are not computed, but confusion matrices and post-resampling 
-#' statistics are provided.
-#'
-#' @return A list where each element is a trained model corresponding to the algorithms specified in 
-#'   \code{selectedPackages}. Each element contains:
-#'   \itemize{
-#'     \item{\code{info}}: General information about the model, including resampling indices, problem type, 
-#'         and outcome mapping.
-#'     \item{\code{training}}: The trained model and variable importance.
-#'     \item{\code{predictions}}: Predictions on the test set, including processed probabilities, confusion 
-#'         matrix, and performance metrics such as AUROC and prAUC (if applicable).
-#'   }
-#'
-#' @importFrom caret train createDataPartition trainControl confusionMatrix varImp postResample
-#' @importFrom pROC roc auc
-#' @importFrom PRROC pr.curve
-#'
-#' @examples
-#' \dontrun{
-#' # Example usage:
-#' dataset_ml <- generate_demo_data(n_subjects = 1000, n_features = 200)
-#' selectedPackages <- c("nb", "rpart")
-#' outcome <- "pandora_cluster"
-#' results <- auto_simon_ml(dataset_ml, outcome, selectedPackages, 0.7)
-#' }
-#'
-#' @keywords internal
-auto_simon_ml <- function(dataset_ml, outcome, selectedPackages, selectedPartitionSplit = 0.7) {
-  set.seed(1337)  # Set seed for reproducibility
-
-  # Create an empty list to store model results
-  model_list <- list()
-
-  # Prepare data
-  outcome_col <- dataset_ml[[outcome]]
-
-  # Encode outcome to factor for classification and apply make.names to the levels
-  if (!is.factor(outcome_col)) {
-    outcome_col <- as.factor(outcome_col)
-  }
-
-  # Ensure factor levels are valid R variable names
-  levels(outcome_col) <- make.names(levels(outcome_col))
-
-  # Split the data into training and testing sets
-  trainIndex <- caret::createDataPartition(outcome_col, p = selectedPartitionSplit, list = FALSE)
-  trainData <- dataset_ml[trainIndex, ]
-  testData <- dataset_ml[-trainIndex, ]
-
-  # Determine if the problem is binary or multi-class classification
-  is_binary_classification <- length(unique(outcome_col)) == 2
-
-  # Iterate through the selected packages (models) and train them
-  for (model_name in selectedPackages) {
-    print(paste("Training model:", model_name))
-
-    # Define the control object for cross-validation
-    trainControlObj <- caret::trainControl(
-      method = "cv",  # Cross-validation
-      number = 5,     # 5-fold CV
-      savePredictions = "final",  # Save predictions for final model
-      classProbs = TRUE,  # Compute class probabilities
-      summaryFunction = if (is_binary_classification) caret::twoClassSummary else caret::multiClassSummary
-    )
-
-    # Train the model
-    trained_model <- caret::train(
-      as.formula(paste(outcome, "~ .")),
-      data = trainData,
-      method = model_name,  # e.g., "nb" for naive Bayes
-      trControl = trainControlObj,
-      metric = "ROC",  # Use ROC as a performance metric
-      preProcess = c("center", "scale", "medianImpute")  # Preprocessing
-    )
-
-    # Make predictions on the test set
-    predictions <- predict(trained_model, newdata = testData)
-    probabilities <- predict(trained_model, newdata = testData, type = "prob")
-
-    # Calculate performance metrics
-    prediction_confusion_matrix <- caret::confusionMatrix(predictions, testData[[outcome]])
-    post_resample <- caret::postResample(predictions, testData[[outcome]])
-
-    # For binary classification, calculate AUROC and prAUC
-    if (is_binary_classification) {
-      roc_obj <- pROC::roc(testData[[outcome]], probabilities[, 2])
-      auroc <- pROC::auc(roc_obj)
-      prAUC <- PRROC::pr.curve(
-        scores.class0 = probabilities[, 2],
-        weights.class0 = testData[[outcome]] == levels(testData[[outcome]])[2]
-      )$auc.integral
-    } else {
-      auroc <- NA  # AUROC isn't typically computed for multi-class, so set to NA
-      prAUC <- NA  # Likewise, prAUC isn't used for multi-class
-    }
-
-    # Store the model details in the model list
-    model_list[[model_name]] <- list(
-      info = list(
-        resampleID = trainIndex,
-        problemType = if (is_binary_classification) "Binary Classification" else "Multi-Class Classification",
-        data = trainData,
-        outcome = outcome,
-        outcome_mapping = levels(outcome_col)
-      ),
-      training = list(
-        raw = trained_model,
-        varImportance = caret::varImp(trained_model)
-      ),
-      predictions = list(
-        raw = predictions,
-        processed = probabilities,
-        prAUC = prAUC,
-        AUROC = auroc,
-        postResample = post_resample,
-        confusionMatrix = prediction_confusion_matrix
-      )
-    )
-
-    print(paste("Finished training model:", model_name))
-  }
-
-  # Return the list of models with details
-  return(model_list)
 }

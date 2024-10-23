@@ -41,14 +41,14 @@
 #'   \item{legendPosition}{Character, position of the legend in plots (e.g., "right", "bottom"). Defaults to "right".}
 #'   \item{datasetAnalysisClustLinkage}{Character, linkage method for dataset-level analysis. Defaults to "ward.D2".}
 #'   \item{datasetAnalysisType}{Character, type of dataset analysis (e.g., "heatmap"). Defaults to "heatmap".}
-#'   \item{datasetAnalysisRemoveOutliersDownstream}{Logical, whether to remove outliers during downstream dataset analysis. Defaults to TRUE.}
+#'   \item{datasetAnalysisRemoveOutliersDownstream}{Logical, whether to remove outliers during downstream dataset analysis (ML). Defaults to FALSE.}
 #'   \item{datasetAnalysisSortColumn}{Character, the column used to sort dataset analysis results. Defaults to "cluster".}
 #'   \item{datasetAnalysisClustOrdering}{Numeric, the order of clusters for analysis. Defaults to 1.}
 #'   \item{anyNAValues}{Logical, whether the dataset contains NA values. Defaults to FALSE.}
 #'   \item{categoricalVariables}{Logical, whether the dataset contains categorical variables. Defaults to FALSE.}
 #' }
 #'
-#' @importFrom dplyr select filter group_by summarize_all
+#' @importFrom dplyr select filter group_by summarize_all rename
 #' @importFrom rlang is_null
 #' @importFrom stats hclust dist na.omit
 #' @importFrom mclust Mclust
@@ -196,7 +196,7 @@ immunaut <- function(dataset, settings = list()){
     if(is_var_empty(settings$excludeOutliers) == TRUE){
         settings$excludeOutliers = TRUE
     }
-
+    
     ## OUTLIER DETECTION END
 
     if(is_var_empty(settings$legendPosition) == TRUE){
@@ -213,7 +213,7 @@ immunaut <- function(dataset, settings = list()){
     }
 
     if(is_var_empty(settings$datasetAnalysisRemoveOutliersDownstream) == TRUE){
-        settings$datasetAnalysisRemoveOutliersDownstream = TRUE
+        settings$datasetAnalysisRemoveOutliersDownstream = FALSE
     }
 
 
@@ -338,21 +338,25 @@ immunaut <- function(dataset, settings = list()){
         dataset_filtered_with_clusters$pandora_cluster <- tsne_clust$info.norm$pandora_cluster
     }
     
-    dataset_with_clusters <- remove_outliers(dataset_with_clusters, settings)
-    data_for_heatmap <- remove_outliers(tsne_clust$info.norm, settings)
+    dataset_ml <- dataset
+    if(nrow(dataset_ml) == nrow(tsne_clust$info.norm)){
+        dataset_ml$pandora_cluster <- tsne_clust$info.norm$pandora_cluster
+        ## Should we remove any outliers, if any detected?
+        dataset_ml <- remove_outliers(dataset_ml, settings)
+        dataset_ml <- dplyr::rename(dataset_ml, immunaut = pandora_cluster)
+        dataset_ml <- dataset_ml[, c("immunaut", setdiff(names(dataset_ml), "immunaut"))]
+    }
 
     results <- list(
         tsne_calc = tsne_calc,
         tsne_clust = tsne_clust,
-        settings = settings,
-        
-        dataset = dataset,
-        dataset_with_clusters = dataset_with_clusters,
-        dataset_filtered = dataset_filtered,
-        dataset_filtered_with_clusters = dataset_filtered_with_clusters,
-
-        data_for_heatmap = data_for_heatmap,
-        num_samples = nrow(dataset_with_clusters)
+        dataset = list(
+            original = dataset,
+            preprocessed = dataset_filtered,
+            dataset_ml = dataset_ml
+        ),
+        clusters = tsne_clust$info.norm$pandora_cluster,
+        settings = settings
     )
 
     return(results)
