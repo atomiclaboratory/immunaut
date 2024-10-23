@@ -8,7 +8,7 @@ Authors@R: c(person("Ivan", "Tomic", role=c("aut","cre","cph"), email="info@ivan
 Author: Ivan Tomic [aut, cre, cph] (<https://orcid.org/0000-0003-3596-681X>), 
         Adriana Tomic [aut, ctb, cph, fnd] (<https://orcid.org/0000-0001-9885-3535>), 
         Stephanie Hao [aut] (<https://orcid.org/0000-0002-3760-8234>)
-Description: Tool used for for analyzing immune responses and predicting vaccine efficacy using machine learning and advanced data processing techniques. It enables researchers to leverage unsupervised learning methods like clustering and dimensionality reduction (e.g., t-SNE, PCA). Designed to handle high-dimensional immune data. Its capabilities extend from pre-processing immune datasets to identifying immunogenicity signatures across diverse populations.
+Description: Used for analyzing immune responses and predicting vaccine efficacy using machine learning and advanced data processing techniques. 'Immunaut' integrates both unsupervised and supervised learning methods, managing outliers and capturing immune response variability. It performs multiple rounds of predictive model testing to identify robust immunogenicity signatures that can predict vaccine responsiveness. The platform is designed to handle high-dimensional immune data, enabling researchers to uncover immune predictors and refine personalized vaccination strategies across diverse populations.
 Maintainer: Ivan Tomic <info@ivantomic.com>
 Packaged: Ivan Tomic <info@ivantomic.com>
 Imports:

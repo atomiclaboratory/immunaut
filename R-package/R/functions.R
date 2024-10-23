@@ -539,7 +539,7 @@ cluster_tsne_hierarchical <- function(info.norm, tsne.norm, settings) {
 #' - `excludeOutliers`: A logical value indicating whether to exclude outliers detected by DBSCAN from the Mclust clustering.
 #' - `pointSize`: A numeric value used to adjust the placement of outlier centroids.
 #'
-#' @importFrom mclust Mclust
+#' @importFrom mclust Mclust mclustBIC
 #' @importFrom dplyr group_by summarise left_join mutate n
 #' @importFrom stats dist median
 #' @importFrom dbscan kNNdist
@@ -607,12 +607,19 @@ cluster_tsne_mclust <- function(info.norm, tsne.norm, settings) {
 
 
     if (length(indices_for_clustering) >= 2) {
+        message(paste("====> Number of indices for clustering: ", length(indices_for_clustering)))
+
         mc.norm <- mclust::Mclust(data_for_clustering, G = settings$clustGroups)
 
-        if(length(indices_for_clustering) < nrow(tsne_data)){
-            info.norm$pandora_cluster[indices_for_clustering] <- as.factor(mc.norm$classification)
-        }else{
-            info.norm$pandora_cluster <- as.factor(mc.norm$classification)
+        # Ensure that pandora_cluster has the correct levels, including from mc.norm$classification
+        mc_classification <- as.factor(mc.norm$classification)
+        levels(info.norm$pandora_cluster) <- union(levels(info.norm$pandora_cluster), levels(mc_classification))
+
+        # Assign clustering results back to info.norm$pandora_cluster
+        if(length(indices_for_clustering) < nrow(tsne_data)) {
+            info.norm$pandora_cluster[indices_for_clustering] <- mc_classification
+        } else {
+            info.norm$pandora_cluster <- mc_classification
         }
 
         # Replace NA values with 100 specifically
@@ -623,6 +630,7 @@ cluster_tsne_mclust <- function(info.norm, tsne.norm, settings) {
         distance_matrix <- dist(data_for_clustering)
         # Ensure cluster labels are integers and align with the distance matrix
         cluster_labels <- as.integer(factor(info.norm$pandora_cluster[indices_for_clustering]))
+
         # Calculate silhouette scores using the aligned data
         silhouette_scores <- cluster::silhouette(cluster_labels, distance_matrix)
         if(is.matrix(silhouette_scores)) {
@@ -631,6 +639,7 @@ cluster_tsne_mclust <- function(info.norm, tsne.norm, settings) {
             avg_silhouette_score <- mean(silhouette_widths, na.rm = TRUE)
         }
 
+        # Handle noise/outlier indices
         if(length(noise_indices) > 0){
             message(paste("====> Noise indices: ", length(noise_indices)))
             if(!"100" %in% levels(info.norm$pandora_cluster)) {
@@ -876,6 +885,22 @@ auto_simon_ml <- function(dataset_ml, settings) {
         stop("Invalid partition split value. Please choose a value between 0 and 1.")
     }
 
+
+    # Preprocess dataset
+    if (!is.null(settings$preProcessDataset)) {
+        preProcessMapping <- preProcessResample(dataset_ml, settings$preProcessDataset, settings$outcome, settings$outcome)
+        dataset_ml <- preProcessMapping$datasetData
+
+    }else if (is.null(settings$preProcessDataset) && anyNA(dataset_ml)) {
+        message("No preprocessing steps specified, but missing values detected. Applying default median imputation.")
+        # Apply default preprocessing (median imputation for NAs, and optionally scaling/centering)
+        preProcessMapping <- preProcessResample(dataset_ml, 
+                                                c("medianImpute", "scale", "center"), 
+                                                settings$outcome, 
+                                                c(settings$outcome, settings$excludedColumns))
+        dataset_ml <- preProcessMapping$datasetData
+    }
+
     ## Make sure outcome levels are valid
     levels(dataset_ml[[settings$outcome]]) <- make.names(levels(dataset_ml[[settings$outcome]]))
     
@@ -932,9 +957,8 @@ auto_simon_ml <- function(dataset_ml, settings) {
             method = model_name,
             # e.g., "nb" for naive Bayes
             trControl = trainControlObj,
-            metric = "ROC",
-            # Use ROC as a performance metric
-            preProcess = settings$preProcessDataset
+            metric = "ROC", # Use ROC as a performance metric
+            preProcess = NULL
             
         )
         

@@ -38,66 +38,77 @@ devtools::install_github("atomiclaboratory/immunaut", subdir = 'R-package')
 ```{r example-setup, eval = TRUE}
 library("immunaut")
 
+# Generate a demo dataset with 1000 subjects, 200 features, 4 clusters, and a 10% probability of missing values
 dataset <- generate_demo_data(n_subjects = 1000, n_features = 200, 
-                                desired_number_clusters = 4, ## Very approximate
-                              cluster_overlap_sd = 35, 
-                              missing_prob = 0.1)
+                                desired_number_clusters = 4, # Approximate number of clusters
+                                cluster_overlap_sd = 35, # Standard deviation for cluster overlap
+                                missing_prob = 0.1) # Probability of missing values
 
-# Generate file header from the demo data
+# Generate a file header for the dataset to use in downstream analysis
 file_header <- generate_file_header(dataset)
 
 # Define settings for t-SNE and clustering
 settings <- list(
-  fileHeader = file_header,
-  selectedColumns = colnames(dataset),
+  fileHeader = file_header,  # File header generated from the dataset
+  selectedColumns = colnames(dataset),  # Columns selected for analysis
   
+  # Exclude outcome, age, and gender columns from the analysis
   excludedColumns = c("outcome", "age", "gender"),
+  
+  # Preprocess the dataset by scaling, centering, and applying median imputation to handle missing values
   preProcessDataset = c("scale", "center", "medianImpute")
 )
 
 ```
 
-## Example 1: Perform t-SNE and Louvain Clustering
+## Example 1: Perform t-SNE and Louvain Clustering and Machine Learning
 ```{r example-1, message=FALSE, warning=FALSE}
-
+# Perform t-SNE and Louvain clustering using the 'immunaut' function
 result <- immunaut(dataset, settings)
 
-## Plot clustered t-SNE using ggplot2
+# Plot the clustered t-SNE results using ggplot2
 p <- plot_clustered_tsne(result$tsne_clust$info.norm, 
                                 result$tsne_clust$cluster_data, 
-                                result$settings)
-print(p)
+                                result$settings) 
+print(p) # Display the plot
 
-dataset_ml <- result$dataset$original
-## Should we remove any outliers, if any detected?
-dataset_ml <- remove_outliers(dataset_ml, result$settings)
-dataset_ml$outcome <- result$clusters
+# Extract the dataset with the applied clustering from the result
+dataset_ml <- result$dataset$dataset_ml
 
-
-dataset_ml <- result$dataset_filtered_with_clusters
-# Remove excluded columns from dataset_ml
-dataset_ml <- dataset_ml[, !colnames(dataset_ml) %in% settings$excludedColumns]
-levels(dataset_ml[["pandora_cluster"]]) <- make.names(levels(dataset_ml[["pandora_cluster"]]))
-
-unique(dataset_ml$pandora_cluster)
-
-# Select machine learning algorithms and train models
-selectedPackages <- c("nb", "rpart")
-selectedPartitionSplit <- 0.7
-
+# Define settings for machine learning (ML) model training
 settings_ml <- list(
-  outcome = file_header,
-  selectedPackages = c("nb", "rpart"),
-  selectedPartitionSplit = 0.7
+  excludedColumns = c("outcome", "age", "gender"),  # Exclude certain columns for ML
+  preProcessDataset = c("scale", "center", "medianImpute"),  # Preprocess by scaling, centering, and imputing missing values
+  selectedPartitionSplit = 0.7,  # 70% of data for training, 30% for testing
+  selectedPackages = c("nb", "rpart")  # Specify ML algorithms: naive Bayes ('nb') and decision tree ('rpart')
 )
-# Run auto_simon_ml
-model_results <- auto_simon_ml(dataset_ml, "pandora_cluster", selectedPackages, selectedPartitionSplit)
 
+# Run the auto_simon_ml function to train machine learning models on the dataset
+model_results <- auto_simon_ml(dataset_ml, settings_ml)
 
+# View the results of the trained models
+# View(model_results)
 
+# Extract the names of the models
+model_names <- names(model_results)
 
+# Create a data frame to store the model names and their corresponding AUROC values
+model_auroc_table <- data.frame(
+  Model = character(),
+  AUROC = numeric(),
+  stringsAsFactors = FALSE
+)
 
+# Loop through the models and extract AUROC values
+for (model_name in model_names) {
+  auroc_value <- model_results[[model_name]][["predictions"]][["AUROC"]]
+  
+  # Add the model name and its AUROC to the table
+  model_auroc_table <- rbind(model_auroc_table, data.frame(Model = model_name, AUROC = auroc_value))
+}
 
+# Display the table of models and their AUROC values
+print(model_auroc_table)
 
 ```
 
@@ -109,11 +120,7 @@ settings$minPtsAdjustmentFactor <- 1.5
 settings$epsQuantile <- 0.9
 
 # Run t-SNE and DBSCAN clustering
-dbscan_result <- immunaut(immunautDemo, settings)
-
-# Display the first few rows of the DBSCAN result
-head(dbscan_result)
-
+dbscan_result <- immunaut(dataset, settings)
 ```
 
 ## Example 3: Perform Mclust Clustering
@@ -123,8 +130,16 @@ settings$clusterType <- "Mclust"
 settings$clustGroups <- 3  # Specify the number of clusters for Mclust
 
 # Run t-SNE and Mclust clustering
-mclust_result <- immunaut(immunautDemo, settings)
+mclust_result <- immunaut(dataset, settings)
+```
 
-# Display the first few rows of the Mclust result
-head(mclust_result)
+## Example 4: Perform Hierarchical Clustering
+```{r example-4, message=FALSE, warning=FALSE}
+# Update settings for Hierarchical clustering
+settings$clusterType <- "Hierarchical"
+settings$clustLinkage <- "ward.D2"
+settings$clustGroups <- 3
+
+# Run t-SNE and Mclust clustering
+mclust_result <- immunaut(dataset, settings)
 ```
