@@ -4,17 +4,6 @@ Ivan Tomic <info@ivantomic.com>
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-Immunaut is an R package designed to facilitate machine learning
-analysis with multi-dimensional datasets. The codebase provides
-functions to perform dimensionality reduction, hierarchical clustering,
-and predictive modeling. Within this framework, users can use
-high-dimensional data, perform t-distributed stochastic neighbor
-embedding (t-SNE) for effective visualization and exploration, and then
-carry out hierarchical clustering to identify latent data structures.
-This analysis chain can then be extended by further appending the data
-with cluster results, allowing for the construction of machine learning
-models with specific outcomes.
-
 ## Installation
 
 You can install the released version of **immunaut** from
