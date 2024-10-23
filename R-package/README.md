@@ -114,7 +114,7 @@ model_auroc_table <- data.frame(
   stringsAsFactors = FALSE
 )
 
-# Loop through the models and extract AUROC values
+# Loop through the models and extract AUROC values (One-vs-Rest) for Multiclass Models
 for (model_name in model_names) {
   auroc_value <- model_results[[model_name]][["predictions"]][["AUROC"]]
   
@@ -122,12 +122,18 @@ for (model_name in model_names) {
   model_auroc_table <- rbind(model_auroc_table, data.frame(Model = model_name, AUROC = auroc_value))
 }
 
-# Display the table of models and their AUROC values
-print(model_auroc_table)
-#>   Model     AUROC
-#> 1    nb 0.9917576
-#> 2 rpart 0.7083020
+# Create a bar chart with AUROC values
+ggplot(model_auroc_table, aes(x = Model, y = AUROC, fill = Model)) +
+  geom_bar(stat = "identity") +  # Create bars
+  geom_text(aes(label = round(AUROC, 3)), vjust = -0.5) +  # Add AUROC values above bars
+  ggtitle("AUROC for Models") +
+  xlab("Model") + 
+  ylab("AUROC") +
+  theme_minimal() +  # Use a minimal theme
+  scale_fill_brewer(palette = "Set3")
 ```
+
+<img src="man/figures/README-example-1-2.png" width="100%" />
 
 ## Example 2: Switch to DBSCAN Clustering
 
