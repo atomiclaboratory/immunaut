@@ -35,16 +35,25 @@ dataset <- generate_demo_data(n_subjects = 1000, n_features = 200,
 # Generate a file header for the dataset to use in downstream analysis
 file_header <- generate_file_header(dataset)
 
-# Define settings for t-SNE and clustering
 settings <- list(
-  fileHeader = file_header,  # File header generated from the dataset
-  selectedColumns = colnames(dataset),  # Columns selected for analysis
-  
-  # Exclude outcome, age, and gender columns from the analysis
-  excludedColumns = c("outcome", "age", "gender"),
-  
-  # Preprocess the dataset by scaling, centering, and applying median imputation to handle missing values
-  preProcessDataset = c("scale", "center", "medianImpute")
+    fileHeader = file_header,
+    seed = 1337,
+    selectedColumns = colnames(dataset),  # Columns selected for analysis
+    # Exclude outcome, age, and gender columns from the analysis
+    excludedColumns = c("outcome", "age", "gender"),
+    removeNA = TRUE,
+    
+    clusterType = "Louvain",
+    target_clusters_range = c(3,4),
+    resolution_increments =c(0.01, 0.1, 0.2, 0.3, 0.4),
+    min_modularities = c(0.5, 0.6, 0.7, 0.8),
+    pickBestClusterMethod = "Modularity",
+    weights = list(AUROC = 0.9, modularity = 0.05, silhouette = 0.05),
+    
+    preProcessDataset = c("scale", "center", "medianImpute", "corr", "zv", "nzv"),
+    selectedPartitionSplit = 0.7,  # Use the current partition split
+    selectedPackages = c("rf", "gcvEarth"),
+    trainingTimeout = 180
 )
 ```
 
@@ -53,12 +62,6 @@ settings <- list(
 ``` r
 # Perform t-SNE and Louvain clustering using the 'immunaut' function
 result <- immunaut(dataset, settings)
-#> ===> INFO: Pre-processing transformation(s) (scale,center,medianImpute) 
-#> ===> INFO: Pre-processing methods_impute: 1 methods_no_impute 2
-#> Computing medians for 200 predictors... done
-#> Calculating 200 means for centering
-#> Calculating 200 standard deviations for scaling
-#> [1] "===> Clustering usingLouvain"
 
 # Plot the clustered t-SNE results using ggplot2
 p <- plot_clustered_tsne(result$tsne_clust$info.norm, 
@@ -73,28 +76,11 @@ print(p) # Display the plot
 
 # Extract the dataset with the applied clustering from the result
 dataset_ml <- result$dataset$dataset_ml
-
-# Define settings for machine learning (ML) model training
-settings_ml <- list(
-  excludedColumns = c("outcome", "age", "gender"),  # Exclude certain columns for ML
-  preProcessDataset = c("scale", "center", "medianImpute"),  # Preprocess by scaling, centering, and imputing missing values
-  selectedPartitionSplit = 0.7,  # 70% of data for training, 30% for testing
-  selectedPackages = c("nb", "rpart")  # Specify ML algorithms: naive Bayes ('nb') and decision tree ('rpart')
-)
-
 # Run the auto_simon_ml function to train machine learning models on the dataset
-model_results <- auto_simon_ml(dataset_ml, settings_ml)
-#> ===> INFO: Pre-processing transformation(s) (scale,center,medianImpute) 
-#> ===> INFO: Pre-processing methods_impute: 1 methods_no_impute 2
-#> Computing medians for 200 predictors... done
-#> Calculating 200 means for centering
-#> Calculating 200 standard deviations for scaling
-
-# View the results of the trained models
-# View(model_results)
+model_results <- auto_simon_ml(dataset_ml, settings)
 
 # Extract the names of the models
-model_names <- names(model_results)
+model_names <- names(model_results$models)
 
 # Create a data frame to store the model names and their corresponding AUROC values
 model_auroc_table <- data.frame(
@@ -105,12 +91,12 @@ model_auroc_table <- data.frame(
 
 # Loop through the models and extract AUROC values (One-vs-Rest) for Multiclass Models
 for (model_name in model_names) {
-  auroc_value <- model_results[[model_name]][["predictions"]][["AUROC"]]
-  
+  auroc_value <- model_results$models[[model_name]][["predictions"]][["AUROC"]]
   # Add the model name and its AUROC to the table
   model_auroc_table <- rbind(model_auroc_table, data.frame(Model = model_name, AUROC = auroc_value))
 }
 
+library(ggplot2)
 # Create a bar chart with AUROC values
 ggplot(model_auroc_table, aes(x = Model, y = AUROC, fill = Model)) +
   geom_bar(stat = "identity") +  # Create bars
@@ -134,12 +120,6 @@ settings$epsQuantile <- 0.9
 
 # Run t-SNE and DBSCAN clustering
 dbscan_result <- immunaut(dataset, settings)
-#> ===> INFO: Pre-processing transformation(s) (scale,center,medianImpute) 
-#> ===> INFO: Pre-processing methods_impute: 1 methods_no_impute 2
-#> Computing medians for 200 predictors... done
-#> Calculating 200 means for centering
-#> Calculating 200 standard deviations for scaling
-#> [1] "===> Clustering usingDensity"
 #> [1] "====> Density-based clustering"
 ```
 
@@ -152,12 +132,6 @@ settings$clustGroups <- 3  # Specify the number of clusters for Mclust
 
 # Run t-SNE and Mclust clustering
 mclust_result <- immunaut(dataset, settings)
-#> ===> INFO: Pre-processing transformation(s) (scale,center,medianImpute) 
-#> ===> INFO: Pre-processing methods_impute: 1 methods_no_impute 2
-#> Computing medians for 200 predictors... done
-#> Calculating 200 means for centering
-#> Calculating 200 standard deviations for scaling
-#> [1] "===> Clustering usingMclust"
 #> [1] "==> cluster_tsne_mclust clustGroups:  3"
 #> fitting ...
 #>   |                                                                                                                                            |                                                                                                                                    |   0%  |                                                                                                                                            |=========                                                                                                                           |   7%  |                                                                                                                                            |==================                                                                                                                  |  13%  |                                                                                                                                            |==========================                                                                                                          |  20%  |                                                                                                                                            |===================================                                                                                                 |  27%  |                                                                                                                                            |============================================                                                                                        |  33%  |                                                                                                                                            |=====================================================                                                                               |  40%  |                                                                                                                                            |==============================================================                                                                      |  47%  |                                                                                                                                            |======================================================================                                                              |  53%  |                                                                                                                                            |===============================================================================                                                     |  60%  |                                                                                                                                            |========================================================================================                                            |  67%  |                                                                                                                                            |=================================================================================================                                   |  73%  |                                                                                                                                            |==========================================================================================================                          |  80%  |                                                                                                                                            |==================================================================================================================                  |  87%  |                                                                                                                                            |===========================================================================================================================         |  93%  |                                                                                                                                            |====================================================================================================================================| 100%
@@ -173,12 +147,6 @@ settings$clustGroups <- 3
 
 # Run t-SNE and Mclust clustering
 hierarchical_result <- immunaut(dataset, settings)
-#> ===> INFO: Pre-processing transformation(s) (scale,center,medianImpute) 
-#> ===> INFO: Pre-processing methods_impute: 1 methods_no_impute 2
-#> Computing medians for 200 predictors... done
-#> Calculating 200 means for centering
-#> Calculating 200 standard deviations for scaling
-#> [1] "===> Clustering usingHierarchical"
-#> [1] "====> Noise indices:  34"
+#> [1] "====> Noise indices:  25"
 #> [1] "====> Noise indices done"
 ```

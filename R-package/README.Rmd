@@ -87,7 +87,7 @@ dataset_ml <- result$dataset$dataset_ml
 model_results <- auto_simon_ml(dataset_ml, settings)
 
 # Extract the names of the models
-model_names <- names(model_results)
+model_names <- names(model_results$models)
 
 # Create a data frame to store the model names and their corresponding AUROC values
 model_auroc_table <- data.frame(
@@ -98,11 +98,12 @@ model_auroc_table <- data.frame(
 
 # Loop through the models and extract AUROC values (One-vs-Rest) for Multiclass Models
 for (model_name in model_names) {
-  auroc_value <- model_results[[model_name]][["predictions"]][["AUROC"]]
+  auroc_value <- model_results$models[[model_name]][["predictions"]][["AUROC"]]
   # Add the model name and its AUROC to the table
   model_auroc_table <- rbind(model_auroc_table, data.frame(Model = model_name, AUROC = auroc_value))
 }
 
+library(ggplot2)
 # Create a bar chart with AUROC values
 ggplot(model_auroc_table, aes(x = Model, y = AUROC, fill = Model)) +
   geom_bar(stat = "identity") +  # Create bars
