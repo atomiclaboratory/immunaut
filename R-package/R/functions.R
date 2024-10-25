@@ -1094,7 +1094,7 @@ auto_simon_ml <- function(dataset_ml, settings) {
 
     
     # Return the list of models with details
-    return(list(models = model_list, dataset = dataset_ml, trainData = trainData, testData = testData))
+    return(list(models = model_list, dataset = dataset_ml, trainData = trainData, testData = testData, is_binary_classification = is_binary_classification))
 }
 
 #' Select the Best Clustering Based on Weighted Scores: AUROC, Modularity, and Silhouette
@@ -1170,7 +1170,19 @@ pick_best_cluster_simon <- function(dataset, tsne_clust, tsne_calc, settings) {
         # Extract AUROC values from models
         model_auroc_table <- data.frame(Model = character(), AUROC = numeric(), stringsAsFactors = FALSE)
         for (model_name in names(ml_results$models)) {
-            auroc_value <- ml_results$models[[model_name]][["predictions"]][["AUROC"]]
+
+            # Select the appropriate AUROC value based on classification type and model outputs
+            if (ml_results$is_binary_classification) {
+                auroc_value <- ml_results$models[[model_name]][["predictions"]][["AUROC"]]
+            } else {
+                # For multi-class classification, prioritize weighted AUROC if available, otherwise use standard AUROC
+                auroc_value <- if (!is.na(ml_results$models[[model_name]][["predictions"]][["weightedAUROC"]])) {
+                    ml_results$models[[model_name]][["predictions"]][["weightedAUROC"]]
+                } else {
+                    ml_results$models[[model_name]][["predictions"]][["AUROC"]]
+                }
+            }
+
             if (!is.na(auroc_value) && !is.null(auroc_value)) {
                 model_auroc_table <- rbind(model_auroc_table, data.frame(Model = model_name, AUROC = auroc_value))
             }
@@ -1180,7 +1192,7 @@ pick_best_cluster_simon <- function(dataset, tsne_clust, tsne_calc, settings) {
         top_5_auroc <- utils::head(model_auroc_table[order(model_auroc_table$AUROC, decreasing = TRUE), ], 5)
         avg_auroc <- mean(top_5_auroc$AUROC, na.rm = TRUE)
 
-        message(paste("===> SIMON: Cluster ", i ," Total Clusters: ", tsne_clust[[i]]$num_clusters ," Mean AUROC for:", round(avg_auroc, 3)))
+        message(paste("===> SIMON: Cluster ", i ," Total Clusters: ", tsne_clust[[i]]$num_clusters ," MOD: ", tsne_clust[[i]]$modularity ," SILH: ", tsne_clust[[i]]$avg_silhouette_score ," Mean AUROC for:", round(avg_auroc, 3)))
 
         # Get modularity and silhouette scores from the current clustering configuration
         modularity <- tsne_clust[[i]]$modularity

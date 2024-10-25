@@ -133,9 +133,9 @@ preProcessData <- function(data, outcome, excludeClasses, methods = c("center", 
 
     # calculate the pre-process parameters from the dataset
     if(!is.null(outcome)){
-        preprocessParams <- preProcess(dataset, method = methods_sorted, outcome = outcome, n.comp = 25, verbose = TRUE, cutoff = 0.5)    
+        preprocessParams <- preProcess(dataset, method = methods_sorted, outcome = outcome, n.comp = 25, verbose = FALSE, cutoff = 0.5)    
     }else{
-        preprocessParams <- preProcess(dataset, method = methods_sorted, n.comp = 25, verbose = TRUE)   
+        preprocessParams <- preProcess(dataset, method = methods_sorted, n.comp = 25, verbose = FALSE)   
     }
     # transform the dataset using the parameters
     processedMat <- stats::predict(preprocessParams, newdata=dataset)
@@ -348,7 +348,7 @@ find_optimal_resolution <- function(graph,
     best_row <- frequent_clusters_results[which.min(abs(frequent_clusters_results$resolution - median_resolution)), ]
     
     # Output the selected clustering result
-    message(paste0("====> Selected resolution: ", best_row$resolution, 
+    message(paste0("===> INFO: Selected resolution: ", best_row$resolution, 
                    " Modularity: ", best_row$modularity, 
                    " Clusters: ", best_row$num_clusters))
 

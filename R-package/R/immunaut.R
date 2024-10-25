@@ -363,7 +363,7 @@ immunaut <- function(dataset, settings = list()){
 
 	# 3. remove NA is any left
     if(settings$removeNA == TRUE){
-        message("=====> Removing NA Values")
+        message("===> INFO: Removing NA Values")
         dataset_filtered <- na.omit(dataset_filtered)
     }
 
@@ -373,7 +373,7 @@ immunaut <- function(dataset, settings = list()){
     
 
 	# 5. cluster tsne
-    message("===> Clustering using", settings$clusterType)
+    message("===> INFO: Clustering using", settings$clusterType)
     set.seed(settings$seed)
     if(settings$clusterType == "Louvain"){
 
