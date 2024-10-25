@@ -40,14 +40,4 @@ to the t-SNE data, and any NA values in the cluster assignments are replaced wit
 outlier cluster ID (100). Finally, the function calculates cluster centroids, sizes, and silhouette
 scores to evaluate cluster separation and quality.
 }
-\examples{
-\dontrun{
-# Example usage:
-tsne_results <- Rtsne::Rtsne(matrix(runif(200), ncol = 2)) # Generate random t-SNE data
-settings <- list(minPtsAdjustmentFactor = 1.5, epsQuantile = 0.9)
-result <- cluster_tsne_density(info.norm = data.frame(matrix(runif(200), ncol = 2)), 
-                               tsne.norm = tsne_results, settings = settings)
-print(result$cluster_data)
-}
-
-}
+\keyword{internal}

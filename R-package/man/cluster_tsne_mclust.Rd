@@ -40,16 +40,4 @@ results. Outliers can be either included or excluded from the clustering, depend
 calculated to assess the quality of the clustering. Cluster centroids are returned, along with the sizes of each cluster,
 and outliers are handled separately in the centroid calculation.
 }
-\examples{
-\dontrun{
-# Example usage:
-tsne_results <- Rtsne::Rtsne(matrix(runif(200), ncol = 2))
-settings <- list(clustGroups = 3, minPtsAdjustmentFactor = 1.5, 
-					epsQuantile = 0.9, excludeOutliers = TRUE, 
-					pointSize = 1.5)
-result <- cluster_tsne_mclust(info.norm = data.frame(matrix(runif(200), ncol = 2)), 
-                              tsne.norm = tsne_results, settings = settings)
-print(result$cluster_data)
-}
-
-}
+\keyword{internal}

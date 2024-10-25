@@ -8,47 +8,41 @@ find_optimal_resolution(
   graph,
   start_resolution = 0.1,
   end_resolution = 10,
+  resolution_increment = 0.1,
   min_modularity = 0.3,
   target_clusters_range = c(3, 6)
 )
 }
 \arguments{
-\item{graph}{An igraph object representing the graph to be clustered.}
+\item{graph}{An \code{igraph} object representing the graph to be clustered.}
 
 \item{start_resolution}{Numeric. The starting resolution for the Louvain algorithm. Default is 0.1.}
 
 \item{end_resolution}{Numeric. The maximum resolution to test. Default is 10.}
 
+\item{resolution_increment}{Numeric. The increment to adjust the resolution at each step. Default is 0.1.}
+
 \item{min_modularity}{Numeric. The minimum acceptable modularity for valid clusterings. Default is 0.3.}
 
-\item{target_clusters_range}{Numeric vector of length 2. The range of acceptable cluster numbers (inclusive). Default is c(3, 6).}
+\item{target_clusters_range}{Numeric vector of length 2. Specifies the acceptable range for the number of clusters (inclusive). Default is \code{c(3, 6)}.}
 }
 \value{
 A list containing:
-\item{optimal_resolution}{The resolution that balances modularity and number of clusters.}
-\item{best_modularity}{The modularity at the optimal resolution.}
-\item{best_clusters}{The number of clusters at the optimal resolution.}
+\item{selected}{A list with the optimal resolution, best modularity, and number of clusters.}
+\item{frequent_clusters_results}{A data frame containing results for resolutions that yielded the most frequent number of clusters.}
+\item{all_results}{A data frame with the resolution, number of clusters, and modularity for all tested resolutions.}
 }
 \description{
-This function finds the optimal resolution for Louvain clustering by iterating over a
-range of resolution values, balancing modularity and the number of clusters. The function
-aims to find a resolution that produces a reasonable number of clusters while maintaining
-high modularity.
+This function iterates over a range of resolution values to find the optimal resolution for
+Louvain clustering, balancing the number of clusters and modularity. It aims to identify a
+resolution that results in a reasonable number of clusters while maintaining a high modularity score.
 }
 \details{
-The function iterates through different resolutions, performing Louvain clustering at each step,
-and records the number of clusters and modularity. It then selects the resolution that provides
-a good balance between a reasonable number of clusters and high modularity.
-The user can set the desired range for the number of clusters.
+The function performs Louvain clustering at different resolutions, starting from \code{start_resolution} and
+ending at \code{end_resolution}, incrementing by \code{resolution_increment} at each step. At each resolution,
+the function calculates the number of clusters and modularity. The results are filtered to select those
+where modularity exceeds \code{min_modularity} and the number of clusters falls within the specified range
+\code{target_clusters_range}. The optimal resolution is chosen based on the most frequent number of clusters and
+the median resolution that satisfies these criteria.
 }
-\examples{
-\dontrun{
-  # Example usage:
-  g <- make_ring(10)  # igraph object representing the graph to be clustered
-  result <- find_optimal_resolution(g, start_resolution = 0.1, 
-                                   end_resolution = 2, 
-                                   min_modularity = 0.4)
-  print(result)
-}
-
-}
+\keyword{internal}

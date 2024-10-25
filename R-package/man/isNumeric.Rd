@@ -15,3 +15,4 @@ Logical indicating whether x is numeric and non-NA
 \description{
 Determines whether a variable is a number or a numeric string
 }
+\keyword{internal}

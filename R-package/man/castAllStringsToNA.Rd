@@ -26,9 +26,4 @@ converts factors to character, and then attempts to convert character values to 
 Any non-numeric strings will be converted to \code{NA}. This is useful for cleaning datasets that may contain
 mixed data types.
 }
-\examples{
-data <- data.frame(A = c("1", "2", "apple"), B = c("3", "banana", "4"), stringsAsFactors = TRUE)
-cleaned_data <- castAllStringsToNA(data, excludeColumns = c("B"))
-print(cleaned_data)
-
-}
+\keyword{internal}

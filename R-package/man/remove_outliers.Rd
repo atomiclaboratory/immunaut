@@ -22,13 +22,4 @@ of outliers marked by a specific cluster ID (typically 100) in the \code{pandora
 This function is meant to be used internally during downstream dataset analysis
 to filter out data points that have been identified as outliers during clustering.
 }
-\examples{
-\dontrun{
-# Example usage
-dataset <- data.frame(pandora_cluster = c(1, 2, 100, 3, 100), values = 1:5)
-settings <- list(datasetAnalysisRemoveOutliersDownstream = TRUE)
-clean_data <- remove_outliers(dataset, settings)
-print(clean_data)
-}
-}
 \keyword{internal}

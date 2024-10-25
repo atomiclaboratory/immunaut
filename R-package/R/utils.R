@@ -6,35 +6,35 @@
 #' @param preProcess Vector of pre-processing methods to apply
 #' @param selectedOutcomeColumns Character vector of outcome columns
 #' @param outcome_and_classes List of outcomes and their classes
+#' @param settings A named list containing settings for the analysis. If NULL, defaults will be used. The settings list may contain:
+#'        - `seed`: An integer seed value for reproducibility.
 #'
 #' @return A list containing the pre-processing mapping and the processed dataset
-#' @export
-preProcessResample <- function(datasetData, preProcess, selectedOutcomeColumns, outcome_and_classes){
+#' @keywords internal
+preProcessResample <- function(datasetData, preProcess, selectedOutcomeColumns, outcome_and_classes, settings){
     # ==> 2 PREPROCCESING: Skewness and normalizing of the numeric predictors
     preProcessMapping <- NULL
     preProcessedData <- NULL
     if(length(preProcess) > 0 ){
         transformations <- paste(preProcess, sep=",", collapse = ",")
-        message <- paste0("===> INFO: Pre-processing transformation(s) (",transformations,") \r\n")
-        cat(message)
+        message(paste0("===> INFO: Pre-processing transformation(s) (",transformations,") \r\n"))
 
         impute_idx <- grepl("impute", tolower(preProcess), fixed = FALSE)
 
         methods_impute <- preProcess[impute_idx]
         methods_no_impute <- preProcess[!impute_idx]
 
-        message <- paste0("===> INFO: Pre-processing methods_impute: ",length(methods_impute)," methods_no_impute ",length(methods_no_impute),"\r\n")
-        cat(message)
+        message(paste0("===> INFO: Pre-processing methods_impute: ",length(methods_impute)," methods_no_impute ",length(methods_no_impute),"\r\n"))
 
         if(length(methods_impute) > 0){
             preProcess <- methods_impute
-            preProcessedData <- preProcessData(datasetData, selectedOutcomeColumns, outcome_and_classes, preProcess)
+            preProcessedData <- preProcessData(datasetData, selectedOutcomeColumns, outcome_and_classes, preProcess, settings)
             datasetData <- preProcessedData$processedMat
         }
 
         if(length(methods_no_impute) > 0){
             preProcess <- methods_no_impute
-            preProcessedData <- preProcessData(datasetData, selectedOutcomeColumns, outcome_and_classes, preProcess)
+            preProcessedData <- preProcessData(datasetData, selectedOutcomeColumns, outcome_and_classes, preProcess, settings)
         }
 
         if(!is.null(preProcessedData)){
@@ -53,8 +53,7 @@ preProcessResample <- function(datasetData, preProcess, selectedOutcomeColumns, 
                 ## preProcessMapping <- preProcessedData$processedMat
             }
         }else{
-            message <- paste0("===> INFO: Could not apply preprocessing transformations, continuing without preprocessing.. \r\n")
-            cat(message)
+            message(paste0("===> INFO: Could not apply preprocessing transformations, continuing without preprocessing.. \r\n"))
         }
     }
 
@@ -82,6 +81,9 @@ preProcessResample <- function(datasetData, preProcess, selectedOutcomeColumns, 
 #'        - `"scale"`: Divide features by their standard deviation.
 #'        - `"pca"`: Principal Component Analysis for dimensionality reduction.
 #'        - Other methods such as `"BoxCox"`, `"YeoJohnson"`, `"range"`, etc.
+#' @param settings A named list containing settings for the analysis. If NULL, defaults will be used. The settings list may contain:
+#'        - `seed`: An integer seed value for reproducibility.
+#' 
 #'
 #' @importFrom caret preProcess
 #' @importFrom dplyr filter arrange select %>%
@@ -98,18 +100,10 @@ preProcessResample <- function(datasetData, preProcess, selectedOutcomeColumns, 
 #' The function also handles categorical columns by skipping their transformation. Users can also 
 #' specify outcome variables for specialized preprocessing.
 #'
-#' @examples
-#' \dontrun{
-#' data(iris)
-#' result <- preProcessData(iris[, 1:4], excludeClasses = "Sepal.Length", 
-#'                          methods = c("center", "scale"))
-#' print(result$processedMat)
-#' }
-#'
-#' @export
-preProcessData <- function(data, outcome, excludeClasses, methods = c("center", "scale"))
+#' @keywords internal
+preProcessData <- function(data, outcome, excludeClasses, methods = c("center", "scale"), settings)
 {
-    set.seed(1337)
+    set.seed(settings$seed)
     if(length(methods) == 0){
         methods <- c("center", "scale")
     }
@@ -174,12 +168,7 @@ preProcessData <- function(data, outcome, excludeClasses, methods = c("center", 
 #' Any non-numeric strings will be converted to `NA`. This is useful for cleaning datasets that may contain
 #' mixed data types.
 #' 
-#' @examples
-#' data <- data.frame(A = c("1", "2", "apple"), B = c("3", "banana", "4"), stringsAsFactors = TRUE)
-#' cleaned_data <- castAllStringsToNA(data, excludeColumns = c("B"))
-#' print(cleaned_data)
-#' 
-#' @export
+#' @keywords internal
 castAllStringsToNA <- function(dataset, excludeColumns = c()) {
     # Validate inputs
     if (!is.data.frame(dataset))  {
@@ -219,7 +208,7 @@ castAllStringsToNA <- function(dataset, excludeColumns = c()) {
 #' @param x Variable to be checked
 #' 
 #' @return Logical indicating whether x is numeric and non-NA
-#' @export
+#' @keywords internal
 isNumeric <- function(x) {
 	is.numeric(x) & !is.na(x)
 }
@@ -228,6 +217,7 @@ isNumeric <- function(x) {
 #' @description Checks if the given variable is empty and optionally logs the variable name.
 #' @param variable The variable to check.
 #' @return boolean TRUE if the variable is considered empty, FALSE otherwise.
+#' @keywords internal
 is_var_empty <- function(variable){
     is_empty <- FALSE
 
@@ -276,43 +266,45 @@ generate_file_header <- function(dataset) {
 
 #' Find Optimal Resolution for Louvain Clustering
 #'
-#' This function finds the optimal resolution for Louvain clustering by iterating over a 
-#' range of resolution values, balancing modularity and the number of clusters. The function 
-#' aims to find a resolution that produces a reasonable number of clusters while maintaining 
-#' high modularity.
+#' This function iterates over a range of resolution values to find the optimal resolution for 
+#' Louvain clustering, balancing the number of clusters and modularity. It aims to identify a 
+#' resolution that results in a reasonable number of clusters while maintaining a high modularity score.
 #'
-#' @param graph An igraph object representing the graph to be clustered.
+#' @param graph An \code{igraph} object representing the graph to be clustered.
 #' @param start_resolution Numeric. The starting resolution for the Louvain algorithm. Default is 0.1.
 #' @param end_resolution Numeric. The maximum resolution to test. Default is 10.
+#' @param resolution_increment Numeric. The increment to adjust the resolution at each step. Default is 0.1.
 #' @param min_modularity Numeric. The minimum acceptable modularity for valid clusterings. Default is 0.3.
-#' @param target_clusters_range Numeric vector of length 2. The range of acceptable cluster numbers (inclusive). Default is c(3, 6).
+#' @param target_clusters_range Numeric vector of length 2. Specifies the acceptable range for the number of clusters (inclusive). Default is \code{c(3, 6)}.
 #'
 #' @return A list containing:
-#'   \item{optimal_resolution}{The resolution that balances modularity and number of clusters.}
-#'   \item{best_modularity}{The modularity at the optimal resolution.}
-#'   \item{best_clusters}{The number of clusters at the optimal resolution.}
+#' \item{selected}{A list with the optimal resolution, best modularity, and number of clusters.}
+#' \item{frequent_clusters_results}{A data frame containing results for resolutions that yielded the most frequent number of clusters.}
+#' \item{all_results}{A data frame with the resolution, number of clusters, and modularity for all tested resolutions.}
 #'
 #' @details
-#' The function iterates through different resolutions, performing Louvain clustering at each step, 
-#' and records the number of clusters and modularity. It then selects the resolution that provides 
-#' a good balance between a reasonable number of clusters and high modularity. 
-#' The user can set the desired range for the number of clusters.
+#' The function performs Louvain clustering at different resolutions, starting from \code{start_resolution} and 
+#' ending at \code{end_resolution}, incrementing by \code{resolution_increment} at each step. At each resolution, 
+#' the function calculates the number of clusters and modularity. The results are filtered to select those 
+#' where modularity exceeds \code{min_modularity} and the number of clusters falls within the specified range 
+#' \code{target_clusters_range}. The optimal resolution is chosen based on the most frequent number of clusters and 
+#' the median resolution that satisfies these criteria.
 #'
-#' @examples
-#' \dontrun{
-#'   # Example usage:
-#'   g <- make_ring(10)  # igraph object representing the graph to be clustered
-#'   result <- find_optimal_resolution(g, start_resolution = 0.1, 
-#'                                    end_resolution = 2, 
-#'                                    min_modularity = 0.4)
-#'   print(result)
-#' }
-#'
-#' @export
-find_optimal_resolution <- function(graph, start_resolution = 0.1, end_resolution = 10, min_modularity = 0.3, target_clusters_range = c(3, 6)) {
-    optimal_resolution <- NA
-    best_modularity <- -1  # Initialize best modularity to a very low value
-    best_clusters <- NA  # Track the best number of clusters
+#' @importFrom igraph cluster_louvain modularity membership
+#' @keywords internal
+find_optimal_resolution <- function(graph, 
+    start_resolution = 0.1, 
+    end_resolution = 10, 
+    resolution_increment = 0.1, 
+    min_modularity = 0.3, 
+    target_clusters_range = c(3, 6)) {
+    results <- data.frame(
+        resolution = numeric(),
+        num_clusters = integer(),
+        modularity = numeric(),
+        stringsAsFactors = FALSE
+    )
+    
     res <- start_resolution
     
     # Iterate over resolutions from start_resolution to end_resolution
@@ -320,26 +312,55 @@ find_optimal_resolution <- function(graph, start_resolution = 0.1, end_resolutio
         lc <- igraph::cluster_louvain(graph, resolution = res)  # Perform Louvain clustering
         modularity_value <- igraph::modularity(lc)  # Calculate modularity
         num_clusters <- length(unique(igraph::membership(lc)))  # Get the number of clusters
-        message(paste0("====> Clusters detected: ", num_clusters, " Resolution: ", res, " with modularity: ", modularity_value))
-        
-        # Check if modularity is above threshold and the number of clusters is within the target range
-        if (modularity_value >= min_modularity && num_clusters >= target_clusters_range[1] && num_clusters <= target_clusters_range[2]) {
-            # Update best resolution if this configuration provides a good balance
-            if (modularity_value > best_modularity) {
-                best_modularity <- modularity_value
-                best_clusters <- num_clusters
-                optimal_resolution <- res
-            }
+
+        # Skip clusterings that are not within the target_clusters_range
+        if (num_clusters < target_clusters_range[1] || num_clusters > target_clusters_range[2]) {
+            res <- res + resolution_increment
+            next
         }
+        # Collect the results into a dataframe
+        results <- rbind(results, data.frame(resolution = res, num_clusters = num_clusters, modularity = modularity_value))
         
         # Increment resolution by 0.1 for the next iteration
-        res <- res + 0.1
+        res <- res + resolution_increment
     }
+    
+    # Filter results for modularity above threshold and number of clusters within the target range
+    valid_results <- results[results$modularity >= min_modularity &
+                               results$num_clusters >= target_clusters_range[1] &
+                               results$num_clusters <= target_clusters_range[2], ]
+    
+    if (nrow(valid_results) == 0) {
+        message("===> INFO: No valid resolutions found")
+        return(NULL)
+    }
+    
+    # Find the most frequent number of clusters
+    most_frequent_clusters <- as.numeric(names(sort(table(valid_results$num_clusters), decreasing = TRUE)[1]))
+    
+    # Subset the results where the number of clusters matches the most frequent one
+    frequent_clusters_results <- valid_results[valid_results$num_clusters == most_frequent_clusters, ]
+    
+    # Find the median resolution from the frequent clusters subset
+    median_resolution <- median(frequent_clusters_results$resolution)
+    
+    # Get the row with the median resolution
+    best_row <- frequent_clusters_results[which.min(abs(frequent_clusters_results$resolution - median_resolution)), ]
+    
+    # Output the selected clustering result
+    message(paste0("====> Selected resolution: ", best_row$resolution, 
+                   " Modularity: ", best_row$modularity, 
+                   " Clusters: ", best_row$num_clusters))
 
-    message(paste0("====> Optimal resolution: ", optimal_resolution, " with modularity: ", best_modularity, " and clusters: ", best_clusters))
-
-    return(list(optimal_resolution = optimal_resolution, best_modularity = best_modularity, best_clusters = best_clusters))
+    return(list(
+            selected = list(optimal_resolution = best_row$resolution, 
+                best_modularity = best_row$modularity, 
+                best_clusters = best_row$num_clusters),
+            frequent_clusters_results = frequent_clusters_results,
+            all_results = results
+        ))
 }
+
 
 #' Generate a Demo Dataset with Specified Number of Clusters and Overlap
 #'
@@ -367,7 +388,7 @@ find_optimal_resolution <- function(graph, start_resolution = 0.1, end_resolutio
 #' introduced in each feature column based on the `missing_prob`.
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' # Generate a demo dataset with 1000 subjects, 200 features, and 3 clusters
 #' demo_data <- generate_demo_data(n_subjects = 1000, n_features = 200, 
 #'                                 desired_number_clusters = 3, 
@@ -380,8 +401,6 @@ find_optimal_resolution <- function(graph, start_resolution = 0.1, end_resolutio
 #' @export
 generate_demo_data <- function(n_subjects = 1000, n_features = 200, missing_prob = 0.1, 
                                desired_number_clusters = 3, cluster_overlap_sd = 15) {
-  # Set seed for reproducibility
-  set.seed(1337)
   
   # Define potential values for categorical variables
   outcomes <- c("low", "high")
@@ -438,14 +457,6 @@ generate_demo_data <- function(n_subjects = 1000, n_features = 200, missing_prob
 #' @return A filtered data frame with outliers removed if applicable.
 #'
 #' @keywords internal
-#' @examples
-#' \dontrun{
-#' # Example usage
-#' dataset <- data.frame(pandora_cluster = c(1, 2, 100, 3, 100), values = 1:5)
-#' settings <- list(datasetAnalysisRemoveOutliersDownstream = TRUE)
-#' clean_data <- remove_outliers(dataset, settings)
-#' print(clean_data)
-#' }
 remove_outliers <- function(dataset, settings) {
     if(settings$datasetAnalysisRemoveOutliersDownstream == TRUE) {
         print("===> INFO: Trying to remove outliers from dataset")

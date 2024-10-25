@@ -35,18 +35,4 @@ based on the characteristics of the dataset, ensuring robust handling of edge ca
 It also performs data validation, such as checking for sufficient data, removing zero variance
 columns, and adjusting perplexity for optimal performance.
 }
-\examples{
-\dontrun{
-dataset <- data.frame(matrix(runif(1000), nrow = 100))
-settings <- list(
-  fileHeader = data.frame(original = colnames(dataset), remapped = colnames(dataset)),
-  perplexity = 30,
-  max_iter = 1000,
-  eta = 200,
-  theta = 0.5
-)
-result <- calculate_tsne(dataset, settings)
-print(result$info.norm)
-}
-
-}
+\keyword{internal}

@@ -8,7 +8,8 @@ preProcessResample(
   datasetData,
   preProcess,
   selectedOutcomeColumns,
-  outcome_and_classes
+  outcome_and_classes,
+  settings
 )
 }
 \arguments{
@@ -19,6 +20,9 @@ preProcessResample(
 \item{selectedOutcomeColumns}{Character vector of outcome columns}
 
 \item{outcome_and_classes}{List of outcomes and their classes}
+
+\item{settings}{A named list containing settings for the analysis. If NULL, defaults will be used. The settings list may contain:
+- \code{seed}: An integer seed value for reproducibility.}
 }
 \value{
 A list containing the pre-processing mapping and the processed dataset
@@ -26,3 +30,4 @@ A list containing the pre-processing mapping and the processed dataset
 \description{
 This function applies pre-processing transformations to the dataset, then resamples it.
 }
+\keyword{internal}

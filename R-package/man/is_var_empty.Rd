@@ -15,3 +15,4 @@ boolean TRUE if the variable is considered empty, FALSE otherwise.
 \description{
 Checks if the given variable is empty and optionally logs the variable name.
 }
+\keyword{internal}

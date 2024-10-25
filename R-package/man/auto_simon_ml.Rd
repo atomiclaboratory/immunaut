@@ -48,13 +48,39 @@ The function returns a list of trained models along with their performance metri
 }
 \examples{
 \dontrun{
-# Example usage:
-dataset_ml <- generate_demo_data(n_subjects = 1000, n_features = 200)
+dataset <- read.csv("fc_wo_noise.csv", header = TRUE, row.names = 1)
+
+# Generate a file header for the dataset to use in downstream analysis
+file_header <- generate_file_header(dataset)
+
 settings <- list(
-  selectedPackages = c("nb", "rpart"),
-  selectedPartitionSplit = 0.7
+    fileHeader = file_header,
+    # Columns selected for analysis
+    selectedColumns = c("ExampleColumn1", "ExampleColumn2"), 
+    clusterType = "Louvain",
+    removeNA = TRUE,
+    preProcessDataset = c("scale", "center", "medianImpute", "corr", "zv", "nzv"),
+    target_clusters_range = c(3,4),
+    resolution_increments = c(0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5),
+    min_modularities = c(0.4, 0.5, 0.6, 0.7, 0.8, 0.85, 0.9),
+    pickBestClusterMethod = "Modularity",
+    seed = 1337
 )
-results <- auto_simon_ml(dataset_ml, settings)
+
+result <- immunaut(dataset, settings)
+dataset_ml <- result$dataset$original
+dataset_ml$pandora_cluster <- tsne_clust[[i]]$info.norm$pandora_cluster
+dataset_ml <- dplyr::rename(dataset_ml, immunaut = pandora_cluster)
+dataset_ml <- dataset_ml[, c("immunaut", setdiff(names(dataset_ml), "immunaut"))]
+settings_ml <- list(
+    excludedColumns = c("ExampleColumn0"),
+    preProcessDataset = c("scale", "center", "medianImpute", "corr", "zv", "nzv"),
+    selectedPartitionSplit = split,  # Use the current partition split
+    selectedPackages = c("rf", "RRF", "RRFglobal", "rpart2", "c5.0", "sparseLDA", 
+    "gcvEarth", "cforest", "gaussPRPoly", "monmlp", "slda", "spls"),
+    trainingTimeout = 180  # Timeout 3 minutes
+)
+ml_results <- auto_simon_ml(dataset_ml, settings_ml)
 }
 
 }

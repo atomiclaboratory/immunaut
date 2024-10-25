@@ -6,6 +6,7 @@
 *.RData
 immunaut.Rproj
 manual.pdf
+tmp
 
 *.o
 *.so

@@ -1,7 +1,7 @@
 Package: immunaut
-Version: 1.0.0
-Date: 2024-10-22
-Title: 'Immunaut': Platform for Machine Learning-Driven Immunogenicity Analysis and Vaccine Response Prediction
+Version: 1.0.1
+Date: 2024-10-24
+Title: Machine Learning Immunogenicity and Vaccine Response Analysis
 Authors@R: c(person("Ivan", "Tomic", role=c("aut","cre","cph"), email="info@ivantomic.com", comment = c(ORCID = "0000-0003-3596-681X")), 
             person("Adriana", "Tomic", role=c("aut","ctb","cph","fnd"), email="tomic.adriana@gmail.com", comment = c(ORCID = "0000-0001-9885-3535")),
             person("Stephanie", "Hao", role=c("aut"), email="sphao@bu.edu", comment = c(ORCID = "0000-0002-3760-8234")))
@@ -28,7 +28,11 @@ Imports:
     mclust,
     ggplot2,
     grDevices,
-    RColorBrewer
+    RColorBrewer,
+    R.utils,
+    clusterSim,
+    parallel,
+    doParallel
 Depends:
 	R (>= 3.4.0)
 URL: https://github.com/atomiclaboratory/immunaut, <https://atomic-lab.org>

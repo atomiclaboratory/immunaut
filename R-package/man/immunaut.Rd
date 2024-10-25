@@ -2,7 +2,7 @@
 % Please edit documentation in R/immunaut.R
 \name{immunaut}
 \alias{immunaut}
-\title{Main function to carry out immunaut analysis}
+\title{Main function to carry out Immunaut Analysis}
 \usage{
 immunaut(dataset, settings = list())
 }
@@ -15,48 +15,70 @@ contain numeric columns for dimensionality reduction and clustering.}
 \describe{
 \item{fileHeader}{A data frame mapping the original column names to remapped column names. Used for t-SNE input preparation.}
 \item{selectedColumns}{Character vector of columns to be used for the analysis. Defaults to NULL.}
-\item{cutOffColumnSize}{Numeric, the maximum size of the dataset in terms of columns. Defaults to 50,000.}
+\item{cutOffColumnSize}{Numeric. The maximum size of the dataset in terms of columns. Defaults to 50,000.}
 \item{excludedColumns}{Character vector of columns to exclude from the analysis. Defaults to NULL.}
 \item{groupingVariables}{Character vector of columns to use for grouping the data during analysis. Defaults to NULL.}
 \item{colorVariables}{Character vector of columns to use for coloring in the plots. Defaults to NULL.}
-\item{preProcessDataset}{Character vector of pre-processing methods to apply (e.g., scaling, normalization). Defaults to NULL.}
-\item{fontSize}{Numeric, font size for plots. Defaults to 12.}
-\item{pointSize}{Numeric, size of points in plots. Defaults to 1.5.}
-\item{theme}{Character, the ggplot2 theme to use (e.g., "theme_gray"). Defaults to "theme_gray".}
-\item{colorPalette}{Character, color palette for plots (e.g., "RdPu"). Defaults to "RdPu".}
-\item{aspect_ratio}{Numeric, the aspect ratio of plots. Defaults to 1.}
-\item{clusterType}{Character, the clustering method to use. Options are "Louvain", "Hierarchical", "Mclust", "Density". Defaults to "Louvain".}
-\item{removeNA}{Logical, whether to remove rows with NA values. Defaults to FALSE.}
-\item{datasetAnalysisGrouped}{Logical, whether to perform grouped dataset analysis. Defaults to FALSE.}
-\item{plot_size}{Numeric, the size of the plot. Defaults to 12.}
-\item{knn_clusters}{Numeric, the number of clusters for KNN-based clustering. Defaults to 250.}
-\item{perplexity}{Numeric, the perplexity parameter for t-SNE. Defaults to NULL (automatically determined).}
-\item{exaggeration_factor}{Numeric, the exaggeration factor for t-SNE. Defaults to NULL.}
-\item{max_iter}{Numeric, the maximum number of iterations for t-SNE. Defaults to NULL.}
-\item{theta}{Numeric, the Barnes-Hut approximation parameter for t-SNE. Defaults to NULL.}
-\item{eta}{Numeric, the learning rate for t-SNE. Defaults to NULL.}
-\item{clustLinkage}{Character, linkage method for hierarchical clustering. Defaults to "ward.D2".}
-\item{clustGroups}{Numeric, the number of groups for hierarchical clustering. Defaults to 9.}
-\item{distMethod}{Character, distance metric for clustering. Defaults to "euclidean".}
-\item{minPtsAdjustmentFactor}{Numeric, adjustment factor for the minimum points in DBSCAN clustering. Defaults to 1.}
-\item{epsQuantile}{Numeric, quantile to compute the epsilon parameter for DBSCAN clustering. Defaults to 0.9.}
-\item{assignOutliers}{Logical, whether to assign outliers in the clustering step. Defaults to TRUE.}
-\item{excludeOutliers}{Logical, whether to exclude outliers from clustering. Defaults to TRUE.}
-\item{legendPosition}{Character, position of the legend in plots (e.g., "right", "bottom"). Defaults to "right".}
-\item{datasetAnalysisClustLinkage}{Character, linkage method for dataset-level analysis. Defaults to "ward.D2".}
-\item{datasetAnalysisType}{Character, type of dataset analysis (e.g., "heatmap"). Defaults to "heatmap".}
-\item{datasetAnalysisRemoveOutliersDownstream}{Logical, whether to remove outliers during downstream dataset analysis (ML). Defaults to FALSE.}
-\item{datasetAnalysisSortColumn}{Character, the column used to sort dataset analysis results. Defaults to "cluster".}
-\item{datasetAnalysisClustOrdering}{Numeric, the order of clusters for analysis. Defaults to 1.}
-\item{anyNAValues}{Logical, whether the dataset contains NA values. Defaults to FALSE.}
-\item{categoricalVariables}{Logical, whether the dataset contains categorical variables. Defaults to FALSE.}
+\item{preProcessDataset}{Character vector of preprocessing methods to apply (e.g., scaling, normalization). Defaults to NULL.}
+\item{fontSize}{Numeric. Font size for plots. Defaults to 12.}
+\item{pointSize}{Numeric. Size of points in plots. Defaults to 1.5.}
+\item{theme}{Character. The ggplot2 theme to use (e.g., "theme_gray"). Defaults to "theme_gray".}
+\item{colorPalette}{Character. Color palette for plots (e.g., "RdPu"). Defaults to "RdPu".}
+\item{aspect_ratio}{Numeric. The aspect ratio of plots. Defaults to 1.}
+\item{clusterType}{Character. The clustering method to use. Options are "Louvain", "Hierarchical", "Mclust", "Density". Defaults to "Louvain".}
+\item{removeNA}{Logical. Whether to remove rows with NA values. Defaults to FALSE.}
+\item{datasetAnalysisGrouped}{Logical. Whether to perform grouped dataset analysis. Defaults to FALSE.}
+\item{plot_size}{Numeric. The size of the plot. Defaults to 12.}
+\item{knn_clusters}{Numeric. The number of clusters for KNN-based clustering. Defaults to 250.}
+\item{perplexity}{Numeric. The perplexity parameter for t-SNE. Defaults to NULL (automatically determined).}
+\item{exaggeration_factor}{Numeric. The exaggeration factor for t-SNE. Defaults to NULL.}
+\item{max_iter}{Numeric. The maximum number of iterations for t-SNE. Defaults to NULL.}
+\item{theta}{Numeric. The Barnes-Hut approximation parameter for t-SNE. Defaults to NULL.}
+\item{eta}{Numeric. The learning rate for t-SNE. Defaults to NULL.}
+\item{clustLinkage}{Character. Linkage method for hierarchical clustering. Defaults to "ward.D2".}
+\item{clustGroups}{Numeric. The number of groups for hierarchical clustering. Defaults to 9.}
+\item{distMethod}{Character. Distance metric for clustering. Defaults to "euclidean".}
+\item{minPtsAdjustmentFactor}{Numeric. Adjustment factor for the minimum points in DBSCAN clustering. Defaults to 1.}
+\item{epsQuantile}{Numeric. Quantile to compute the epsilon parameter for DBSCAN clustering. Defaults to 0.9.}
+\item{assignOutliers}{Logical. Whether to assign outliers in the clustering step. Defaults to TRUE.}
+\item{excludeOutliers}{Logical. Whether to exclude outliers from clustering. Defaults to TRUE.}
+\item{legendPosition}{Character. Position of the legend in plots (e.g., "right", "bottom"). Defaults to "right".}
+\item{datasetAnalysisClustLinkage}{Character. Linkage method for dataset-level analysis. Defaults to "ward.D2".}
+\item{datasetAnalysisType}{Character. Type of dataset analysis (e.g., "heatmap"). Defaults to "heatmap".}
+\item{datasetAnalysisRemoveOutliersDownstream}{Logical. Whether to remove outliers during downstream dataset analysis (e.g., machine learning). Defaults to FALSE.}
+\item{datasetAnalysisSortColumn}{Character. The column used to sort dataset analysis results. Defaults to "cluster".}
+\item{datasetAnalysisClustOrdering}{Numeric. The order of clusters for analysis. Defaults to 1.}
+\item{anyNAValues}{Logical. Whether the dataset contains NA values. Defaults to FALSE.}
+\item{categoricalVariables}{Logical. Whether the dataset contains categorical variables. Defaults to FALSE.}
+\item{resolution_increments}{Numeric vector. The resolution increments to be used for Louvain clustering. Defaults to \code{c(0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5)}.}
+\item{min_modularities}{Numeric vector. The minimum modularities to test for clustering. Defaults to \code{c(0.4, 0.5, 0.6, 0.7, 0.8, 0.85, 0.9)}.}
+\item{target_clusters_range}{Numeric vector. The range of acceptable clusters to identify. Defaults to \code{c(3, 6)}.}
+\item{pickBestClusterMethod}{Character. The method to use for picking the best clustering result ("Modularity", "Silhouette", or "ML"). Defaults to "Modularity".}
 }}
 }
 \value{
-A data frame with cluster assignments added as a new column. If NULL, warning messages will be printed for any erroneous input parameters.
+A list containing the following:
+\itemize{
+\item \code{tsne_calc}: The t-SNE results object.
+\item \code{tsne_clust}: The clustering results.
+\item \code{dataset}: A list containing the original dataset, the preprocessed dataset, and a dataset with machine learning-ready data.
+\item \code{clusters}: The final cluster assignments.
+\item \code{settings}: The list of settings used for the analysis.
+}
 }
 \description{
 This function performs clustering and dimensionality reduction analysis on a dataset using user-defined settings.
-It handles various pre-processing steps, dimensionality reduction via t-SNE, multiple clustering methods, and
+It handles various preprocessing steps, dimensionality reduction via t-SNE, multiple clustering methods, and
 generates associated plots based on user-defined or default settings.
+}
+\examples{
+\donttest{
+  data <- matrix(runif(2000), ncol=20)
+  settings <- list(clusterType = "Louvain", 
+  resolution_increments = c(0.05, 0.1), 
+  min_modularities = c(0.3, 0.5))
+  result <- immunaut(data.frame(data), settings)
+  print(result$clusters)
+}
+
 }

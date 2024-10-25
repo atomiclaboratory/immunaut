@@ -42,17 +42,4 @@ on the t-SNE results, either including or excluding the outliers depending on th
 computed to assess the quality of the clustering. Cluster centroids are calculated and returned, along with the
 sizes of each cluster. Outliers, if detected, are handled separately in the final centroid calculation.
 }
-\examples{
-\dontrun{
-# Example usage:
-tsne_results <- Rtsne::Rtsne(matrix(runif(200), ncol = 2))  # Generate random t-SNE data
-settings <- list(clustLinkage = "ward.D2", clustGroups = 5, 
-					distMethod = "euclidean", 
-					minPtsAdjustmentFactor = 1.5, epsQuantile = 0.9, 
-					excludeOutliers = TRUE, pointSize = 1.5)
-result <- cluster_tsne_hierarchical(info.norm = data.frame(matrix(runif(200), ncol = 2)), 
-                                    tsne.norm = tsne_results, settings = settings)
-print(result$cluster_data)
-}
-
-}
+\keyword{internal}

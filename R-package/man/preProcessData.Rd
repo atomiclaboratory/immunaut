@@ -4,7 +4,13 @@
 \alias{preProcessData}
 \title{Preprocess a Dataset Using Specified Methods}
 \usage{
-preProcessData(data, outcome, excludeClasses, methods = c("center", "scale"))
+preProcessData(
+  data,
+  outcome,
+  excludeClasses,
+  methods = c("center", "scale"),
+  settings
+)
 }
 \arguments{
 \item{data}{A data frame or matrix representing the dataset to be preprocessed.}
@@ -24,6 +30,9 @@ Default methods are \code{c("center", "scale")}. Available methods include:
 - \code{"scale"}: Divide features by their standard deviation.
 - \code{"pca"}: Principal Component Analysis for dimensionality reduction.
 - Other methods such as \code{"BoxCox"}, \code{"YeoJohnson"}, \code{"range"}, etc.}
+
+\item{settings}{A named list containing settings for the analysis. If NULL, defaults will be used. The settings list may contain:
+- \code{seed}: An integer seed value for reproducibility.}
 }
 \value{
 A list containing:
@@ -45,12 +54,4 @@ than two columns remain after excluding specified columns, the function halts an
 The function also handles categorical columns by skipping their transformation. Users can also
 specify outcome variables for specialized preprocessing.
 }
-\examples{
-\dontrun{
-data(iris)
-result <- preProcessData(iris[, 1:4], excludeClasses = "Sepal.Length", 
-                         methods = c("center", "scale"))
-print(result$processedMat)
-}
-
-}
+\keyword{internal}

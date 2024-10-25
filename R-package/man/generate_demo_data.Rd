@@ -45,7 +45,7 @@ with some overlap between clusters to simulate more realistic data. Missing valu
 introduced in each feature column based on the \code{missing_prob}.
 }
 \examples{
-\dontrun{
+\donttest{
 # Generate a demo dataset with 1000 subjects, 200 features, and 3 clusters
 demo_data <- generate_demo_data(n_subjects = 1000, n_features = 200, 
                                 desired_number_clusters = 3, 
