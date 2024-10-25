@@ -1198,17 +1198,21 @@ pick_best_cluster_simon <- function(dataset, tsne_clust, tsne_calc, settings) {
 
         # Logging for diagnostics
         message(paste("===> SIMON: Cluster", i,
-                      "MOD:", round(norm_modularities[i], 3),
-                      "SILH:", round(norm_silhouettes[i], 3),
-                      "AUROC:", round(norm_aurocs[i], 3),
-                      "Combined Score:", round(combined_score, 3)))
+                      " Clusters: ", tsne_clust[[i]]$num_clusters,
+                      " MOD:", round(norm_modularities[i], 3),
+                      " SILH:", round(norm_silhouettes[i], 3),
+                      " AUROC:", round(norm_aurocs[i], 3),
+                      " CS:", round(combined_score, 3)))
 
         # Update best cluster if this one has a higher score
         if (combined_score > best_score) {
             best_score <- combined_score
             best_cluster <- list(
                 tsne_clust = tsne_clust[[i]],
-                combined_score = combined_score
+                combined_score = combined_score,
+                modularity = all_modularities[i],
+                silhouette = all_silhouettes[i],
+                auroc = all_aurocs[i]
             )
         }
     }
