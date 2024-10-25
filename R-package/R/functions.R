@@ -1137,12 +1137,6 @@ pick_best_cluster_simon <- function(dataset, tsne_clust, tsne_calc, settings) {
     if (length(tsne_clust) == 0) {
         stop("The tsne_clust list is empty.")
     }
-    
-    # Set default weights if not provided in settings
-    weights <- settings$weights
-    if (is.null(weights)) {
-        weights <- list(AUROC = 0.5, modularity = 0.3, silhouette = 0.2)
-    }
 
     # Initialize arrays for holding each metric
     all_aurocs <- numeric(length(tsne_clust))
@@ -1192,9 +1186,9 @@ pick_best_cluster_simon <- function(dataset, tsne_clust, tsne_calc, settings) {
 
     # Calculate and evaluate the combined score for each configuration
     for (i in seq_along(tsne_clust)) {
-        combined_score <- (weights$AUROC * norm_aurocs[i]) + 
-                          (weights$modularity * norm_modularities[i]) + 
-                          (weights$silhouette * norm_silhouettes[i])
+        combined_score <- (settings$weights$AUROC * norm_aurocs[i]) + 
+                          (settings$weights$modularity * norm_modularities[i]) + 
+                          (settings$weights$silhouette * norm_silhouettes[i])
 
         # Logging for diagnostics
         message(paste("===> SIMON: Cluster", i,
@@ -1221,7 +1215,16 @@ pick_best_cluster_simon <- function(dataset, tsne_clust, tsne_calc, settings) {
         stop("No valid clustering result found with non-missing values for AUROC, modularity, and silhouette.")
     }
 
-    message(paste("===> INFO: Best clustering selected with combined score:", round(best_score, 3)))
+    message(paste0(
+        "===> INFO: Best clustering selected with combined score: ", 
+        round(best_cluster$combined_score, 3),
+        " | Clusters: ", best_cluster$tsne_clust$num_clusters, 
+        " | MOD: ", round(best_cluster$tsne_clust$modularity, 3), 
+        " | SIL: ", round(best_cluster$tsne_clust$avg_silhouette_score, 3),
+        " | AUC: ", round(max(best_cluster$auroc), 3)
+    ))
+
+
     return(best_cluster)
 }
 

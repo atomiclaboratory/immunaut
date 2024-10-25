@@ -49,7 +49,13 @@
 #'   \item{resolution_increments}{Numeric vector. The resolution increments to be used for Louvain clustering. Defaults to \code{c(0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5)}.}
 #'   \item{min_modularities}{Numeric vector. The minimum modularities to test for clustering. Defaults to \code{c(0.4, 0.5, 0.6, 0.7, 0.8, 0.85, 0.9)}.}
 #'   \item{target_clusters_range}{Numeric vector. The range of acceptable clusters to identify. Defaults to \code{c(3, 6)}.}
-#'   \item{pickBestClusterMethod}{Character. The method to use for picking the best clustering result ("Modularity", "Silhouette", or "ML"). Defaults to "Modularity".}
+#'   \item{pickBestClusterMethod}{Character. The method to use for picking the best clustering result ("Modularity", "Silhouette", or "SIMON"). Defaults to "Modularity".}
+#'   \item{weights}{List. Weights for evaluating clusters based on \code{AUROC}, \code{modularity}, and \code{silhouette}. Defaults to \code{list(AUROC = 0.5, modularity = 0.3, silhouette = 0.2)}. These weights are applied to help choose the most relevant clusters based on user goals:
+#'   \describe{
+#'     \item{\code{AUROC}}{Weight for predictive performance (area under the receiver operating characteristic curve). Prioritize this when predictive accuracy is the main goal. For predictive analysis, a recommended configuration could be \code{list(AUROC = 0.8, modularity = 0.1, silhouette = 0.1)}.}
+#'     \item{\code{modularity}}{Weight for modularity score, which indicates the strength of clustering. Higher modularity suggests that clusters are well-separated. To prioritize well-separated clusters, use a configuration like \code{list(AUROC = 0.4, modularity = 0.4, silhouette = 0.2)}.}
+#'     \item{\code{silhouette}}{Weight for silhouette score, a measure of cohesion within clusters. Useful when cluster cohesion and interpretability are desired. For balanced clusters, a suggested configuration is \code{list(AUROC = 0.4, modularity = 0.3, silhouette = 0.3)}.}
+#'   }}
 #' }
 #'
 #' @importFrom dplyr select filter group_by summarise_all rename
@@ -187,6 +193,10 @@ immunaut <- function(dataset, settings = list()){
 
     if(is_var_empty(settings$trainingTimeout) == TRUE){
         settings$trainingTimeout <- 360
+    }
+
+    if(is_var_empty(settings$weights) == TRUE){
+        settings$weights <- list(AUROC = 0.5, modularity = 0.3, silhouette = 0.2)
     }
 
     ## Louvain Specific END
