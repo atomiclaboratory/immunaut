@@ -46,17 +46,29 @@ dataset <- generate_demo_data(n_subjects = 1000, n_features = 200,
 # Generate a file header for the dataset to use in downstream analysis
 file_header <- generate_file_header(dataset)
 
-# Define settings for t-SNE and clustering
 settings <- list(
-  fileHeader = file_header,  # File header generated from the dataset
-  selectedColumns = colnames(dataset),  # Columns selected for analysis
-  
-  # Exclude outcome, age, and gender columns from the analysis
-  excludedColumns = c("outcome", "age", "gender"),
-  
-  # Preprocess the dataset by scaling, centering, and applying median imputation to handle missing values
-  preProcessDataset = c("scale", "center", "medianImpute")
+    fileHeader = file_header,
+    seed = 1337,
+    selectedColumns = colnames(dataset),  # Columns selected for analysis
+    # Exclude outcome, age, and gender columns from the analysis
+    excludedColumns = c("outcome", "age", "gender"),
+    removeNA = TRUE,
+    
+    clusterType = "Louvain",
+    target_clusters_range = c(3,4),
+    resolution_increments = c(0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5),
+    # c(0.01, 0.1, 0.2, 0.3, 0.4)
+    min_modularities = c(0.4, 0.5, 0.6, 0.7, 0.8, 0.85, 0.9),
+    # c(0.5, 0.6, 0.7, 0.8) 
+    pickBestClusterMethod = "SIMON",
+    weights = list(AUROC = 0.9, modularity = 0.05, silhouette = 0.05),
+    
+    preProcessDataset = c("scale", "center", "medianImpute", "corr", "zv", "nzv"),
+    selectedPartitionSplit = 0.7,  # Use the current partition split
+    selectedPackages = c("rf", "gcvEarth"),
+    trainingTimeout = 180
 )
+
 
 ```
 
@@ -73,20 +85,8 @@ print(p) # Display the plot
 
 # Extract the dataset with the applied clustering from the result
 dataset_ml <- result$dataset$dataset_ml
-
-# Define settings for machine learning (ML) model training
-settings_ml <- list(
-  excludedColumns = c("outcome", "age", "gender"),  # Exclude certain columns for ML
-  preProcessDataset = c("scale", "center", "medianImpute"),  # Preprocess by scaling, centering, and imputing missing values
-  selectedPartitionSplit = 0.7,  # 70% of data for training, 30% for testing
-  selectedPackages = c("nb", "rpart")  # Specify ML algorithms: naive Bayes ('nb') and decision tree ('rpart')
-)
-
 # Run the auto_simon_ml function to train machine learning models on the dataset
-model_results <- auto_simon_ml(dataset_ml, settings_ml)
-
-# View the results of the trained models
-# View(model_results)
+model_results <- auto_simon_ml(dataset_ml, settings)
 
 # Extract the names of the models
 model_names <- names(model_results)
@@ -101,7 +101,6 @@ model_auroc_table <- data.frame(
 # Loop through the models and extract AUROC values (One-vs-Rest) for Multiclass Models
 for (model_name in model_names) {
   auroc_value <- model_results[[model_name]][["predictions"]][["AUROC"]]
-  
   # Add the model name and its AUROC to the table
   model_auroc_table <- rbind(model_auroc_table, data.frame(Model = model_name, AUROC = auroc_value))
 }
