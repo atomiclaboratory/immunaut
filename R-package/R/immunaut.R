@@ -402,11 +402,6 @@ immunaut <- function(dataset, settings = list()){
         }else if(settings$pickBestClusterMethod == "SIMON"){
             best_cluster <- pick_best_cluster_simon(dataset, tsne_clust, tsne_calc, settings)
             tsne_clust <- best_cluster$tsne_clust
-            
-            message("===> SIMON: Best Score: ", best_cluster$combined_score)
-            message("===> SIMON: AUROC Table: ")
-            print(best_cluster$model_auroc_table)
-
         }else{
             tsne_clust <- pick_best_cluster_modularity(tsne_clust)
         }
@@ -443,11 +438,6 @@ immunaut <- function(dataset, settings = list()){
         }else if(settings$pickBestClusterMethod == "SIMON"){
             best_cluster <- pick_best_cluster_simon(dataset, tsne_clust, tsne_calc, settings)
             tsne_clust <- best_cluster$tsne_clust
-            
-            message("===> SIMON: Best Score: ", best_cluster$combined_score)
-            message("===> SIMON: AUROC Table: ")
-            print(best_cluster$model_auroc_table)
-
         }else{
             tsne_clust <- pick_best_cluster_modularity(tsne_clust)
         }

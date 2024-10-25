@@ -555,3 +555,10 @@ plot_clustered_tsne <- function(info.norm, cluster_data, settings){
 
     return(plotData)
 }
+
+# Helper function to normalize scores with NA handling
+#' @keywords internal
+normalize <- function(x) {
+    if (max(x) == min(x)) return(rep(0.5, length(x)))  # Middle ground if no range
+    (x - min(x)) / (max(x) - min(x))
+}
