@@ -1,5 +1,7 @@
 # Immunaut: Machine Learning-Driven Immunogenicity Analysis
 
+![Immunaut Graphical Abstract](https://github.com/atomiclaboratory/immunaut/blob/master/images/immunaut_abstract.png)
+
 Welcome to the **Immunaut** project! This repository is dedicated to the development of the **Immunaut** platform, which leverages machine learning to perform immunogenicity analysis and vaccine response prediction. The project is organized into multiple directories and files to aid in development and usage.
 
 ## R-package Directory
