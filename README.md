@@ -53,15 +53,17 @@ git clone https://github.com/atomiclaboratory/immunaut.git
 ```
 
 ### Install the Immunaut R package:
-Navigate to the R-package/ directory and follow the instructions provided in the README file to install the Immunaut R package.
+Navigate to the `R-package/` directory and follow the instructions provided in the README file to install the Immunaut R package.
 
 ## 💻 For Developers and Researchers
 Immunaut is designed to be modular and adaptable, making it easy to extend its functionality to other vaccines and immunological datasets. Future developments will focus on integrating additional modalities, such as spatial transcriptomics and advanced machine learning algorithms, to further enhance prediction accuracy and utility.
 
 ## 📜 Data Availability
 
-    Platform: Available through the PANDORA AI platform and as an R package on CRAN.
-    Dataset: The full dataset is accessible on Zenodo.
+- **Platform**: Available through the [PANDORA AI platform](https://github.com/genular/pandora-backend) and as an [R package on CRAN](https://cran.r-project.org/web/packages/immunaut/index.html).
+- **Dataset**: The full dataset is accessible on [Zenodo](https://doi.org/10.5281/zenodo.14719593).
+
+---
 
 ## 🎉 Join us in advancing the field of precision vaccinology with Immunaut!
-For questions or contributions, feel free to open an issue or reach out through our GitHub repository.
+For questions or contributions, feel free to open an issue or reach out through our [GitHub repository](https://github.com/atomiclaboratory/immunaut).
