@@ -2,13 +2,12 @@
 ### immunaut ###
 ################
 
-
 # Install necessary packages
 # The following section checks if specific packages are installed, and if not, installs them.
 if (!require("Rcpp")) install.packages("Rcpp", repos = "http://cran.us.r-project.org")
 if (!require("devtools")) install.packages("devtools", repos = "http://cran.us.r-project.org")
 if (!require("knitr")) install.packages("knitr", repos = "http://cran.us.r-project.org")
-if (!require("roxygen2")) devtools::install_github("klutometis/roxygen")  # Install from GitHub if not available on CRAN
+if (!require("roxygen2")) pak::pak("r-lib/roxygen2")
 if (!require("rmarkdown")) install.packages("rmarkdown", repos = "http://cran.us.r-project.org")
 
 # Load libraries
@@ -20,9 +19,9 @@ library(Rcpp)  # Interface for seamless integration of R and C++ code
 # Set the project directory (consider passing as an argument or setting externally)
 # Define the path to the package source directory.
 project_dir <- "/mnt/data/projects/atomic_laboratory/immunaut_r_package/R-package"
-# Avoid using setwd() in scripts as it can affect the working directory globally and lead to unexpected behavior.
-# Instead, use absolute paths or manage working directories externally if needed.
-# setwd(project_dir)
+setwd(project_dir)
+
+source(file.path(project_dir, "data-raw", "DATASET.R"))
 
 # Load all functions, compile, and document the package
 # Load the package functions without installing, useful for testing and development.

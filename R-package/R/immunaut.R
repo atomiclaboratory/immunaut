@@ -166,13 +166,11 @@ immunaut <- function(dataset, settings = list()){
 
     ## Louvain Specific START
     if(is_var_empty(settings$resolution_increments) == TRUE){
-        settings$resolution_increments <-  c(0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5)
-        #settings$resolution_increments <- c(0.01, 0.1, 0.2, 0.3, 0.4)
+        settings$resolution_increments <- c(0.44)
     }
 
     if(is_var_empty(settings$min_modularities) == TRUE){
-        settings$min_modularities <- c(0.4, 0.5, 0.6, 0.7, 0.8, 0.85, 0.9)
-        #settings$min_modularities <- c(0.5, 0.6, 0.7, 0.8) 
+        settings$min_modularities <- c(0.8)
     }
 
     if(is_var_empty(settings$target_clusters_range) == TRUE){
@@ -218,23 +216,23 @@ immunaut <- function(dataset, settings = list()){
     }
 
     if(is_var_empty(settings$knn_clusters) == TRUE){
-        settings$knn_clusters <- 250
-    }
-
-    if(is_var_empty(settings$perplexity) == TRUE){
-        settings$perplexity <- NULL
+        settings$knn_clusters <- 60
     }
     if(is_var_empty(settings$exaggeration_factor) == TRUE){
         settings$exaggeration_factor <- NULL
     }
+
+    if(is_var_empty(settings$perplexity) == TRUE){
+        settings$perplexity <- 50
+    }
     if(is_var_empty(settings$max_iter) == TRUE){
-        settings$max_iter <- NULL
+        settings$max_iter <- 700
     }
     if(is_var_empty(settings$theta) == TRUE){
-        settings$theta <- NULL
+        settings$theta <- 0.1
     }
     if(is_var_empty(settings$eta) == TRUE){
-        settings$eta <- NULL
+        settings$eta <- 500
     }
 
     if(is_var_empty(settings$clustLinkage) == TRUE){
@@ -242,7 +240,7 @@ immunaut <- function(dataset, settings = list()){
     }
 
     if(is_var_empty(settings$clustGroups) == TRUE){
-        settings$clustGroups = 9
+        settings$clustGroups = 3
     }
 
     ## OUTLIER DETECTION START
@@ -383,37 +381,41 @@ immunaut <- function(dataset, settings = list()){
     
 
 	# 5. cluster tsne
-    message("===> INFO: Clustering using", settings$clusterType)
+    message("===> INFO: Clustering using: ", settings$clusterType)
     set.seed(settings$seed)
     if(settings$clusterType == "Louvain"){
 
-        tsne_clust <- list()
+        tsne_clust_tmp <- list()
         iteration <- 1
         for (res_increment in settings$resolution_increments) {
             for (min_modularity in settings$min_modularities) {
                 tmp <- cluster_tsne_knn_louvain(tsne_calc$info.norm, tsne_calc$tsne.norm, settings, res_increment, min_modularity)
 
-                if(tmp$num_clusters < min(settings$target_clusters_range) && tmp$num_clusters > max(settings$target_clusters_range)){
-                    message("===> INFO: Skipping cluster with ", tmp$num_clusters, " clusters")
-                    next
+                if (tmp$num_clusters < min(settings$target_clusters_range) || 
+                    tmp$num_clusters > max(settings$target_clusters_range)) {
+                  message("+++++++++++> INFO: Skipping cluster with ", tmp$num_clusters, " clusters")
+                  next
                 }
-                
-                tsne_clust[[iteration]] <- tmp
+
+                tmp$initial_res_increment <- res_increment
+                tmp$initial_min_modularity <- min_modularity
+
+                tsne_clust_tmp[[iteration]] <- tmp
                 iteration <- iteration + 1
             }
         }
 
         if(settings$pickBestClusterMethod == "Modularity"){
-            tsne_clust <- pick_best_cluster_modularity(tsne_clust)
+            tsne_clust <- pick_best_cluster_modularity(tsne_clust_tmp)
         }else if(settings$pickBestClusterMethod == "Silhouette"){
-            tsne_clust <- pick_best_cluster_silhouette(tsne_clust)
+            tsne_clust <- pick_best_cluster_silhouette(tsne_clust_tmp)
         }else if(settings$pickBestClusterMethod == "Overall"){
-            tsne_clust <- pick_best_cluster_overall(tsne_clust, tsne_calc)
+            tsne_clust <- pick_best_cluster_overall(tsne_clust_tmp, tsne_calc)
         }else if(settings$pickBestClusterMethod == "SIMON"){
-            best_cluster <- pick_best_cluster_simon(dataset, tsne_clust, tsne_calc, settings)
+            best_cluster <- pick_best_cluster_simon(dataset, tsne_clust_tmp, tsne_calc, settings)
             tsne_clust <- best_cluster$tsne_clust
         }else{
-            tsne_clust <- pick_best_cluster_modularity(tsne_clust)
+            tsne_clust <- pick_best_cluster_modularity(tsne_clust_tmp)
         }
 
     }else if(settings$clusterType == "Hierarchical"){
@@ -423,33 +425,37 @@ immunaut <- function(dataset, settings = list()){
     }else if(settings$clusterType == "Density"){
        tsne_clust <- cluster_tsne_density(tsne_calc$info.norm, tsne_calc$tsne.norm, settings)
     }else{
-        tsne_clust <- list()
+        tsne_clust_tmp <- list()
         iteration <- 1
         for (res_increment in settings$resolution_increments) {
             for (min_modularity in settings$min_modularities) {
                 tmp <- cluster_tsne_knn_louvain(tsne_calc$info.norm, tsne_calc$tsne.norm, settings, res_increment, min_modularity)
 
-                if(tmp$num_clusters < min(settings$target_clusters_range) && tmp$num_clusters > max(settings$target_clusters_range)){
-                    message("===> INFO: Skipping cluster with ", tmp$num_clusters, " clusters")
-                    next
+                if (tmp$num_clusters < min(settings$target_clusters_range) || 
+                    tmp$num_clusters > max(settings$target_clusters_range)) {
+                  message("+++++++++++> INFO: Skipping cluster with ", tmp$num_clusters, " clusters")
+                  next
                 }
+
+                tmp$initial_res_increment <- res_increment
+                tmp$initial_min_modularity <- min_modularity
                 
-                tsne_clust[[iteration]] <- tmp
+                tsne_clust_tmp[[iteration]] <- tmp
                 iteration <- iteration + 1
             }
         }
 
         if(settings$pickBestClusterMethod == "Modularity"){
-            tsne_clust <- pick_best_cluster_modularity(tsne_clust)
+            tsne_clust <- pick_best_cluster_modularity(tsne_clust_tmp)
         }else if(settings$pickBestClusterMethod == "Silhouette"){
-            tsne_clust <- pick_best_cluster_silhouette(tsne_clust)
+            tsne_clust <- pick_best_cluster_silhouette(tsne_clust_tmp)
         }else if(settings$pickBestClusterMethod == "Overall"){
-            tsne_clust <- pick_best_cluster_overall(tsne_clust, tsne_calc)
+            tsne_clust <- pick_best_cluster_overall(tsne_clust_tmp, tsne_calc)
         }else if(settings$pickBestClusterMethod == "SIMON"){
-            best_cluster <- pick_best_cluster_simon(dataset, tsne_clust, tsne_calc, settings)
+            best_cluster <- pick_best_cluster_simon(dataset, tsne_clust_tmp, tsne_calc, settings)
             tsne_clust <- best_cluster$tsne_clust
         }else{
-            tsne_clust <- pick_best_cluster_modularity(tsne_clust)
+            tsne_clust <- pick_best_cluster_modularity(tsne_clust_tmp)
         }
     }
 

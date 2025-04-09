@@ -134,7 +134,7 @@ settings$clustGroups <- 3  # Specify the number of clusters for Mclust
 mclust_result <- immunaut(dataset, settings)
 #> [1] "==> cluster_tsne_mclust clustGroups:  3"
 #> fitting ...
-#>   |                                                                                                                                            |                                                                                                                                    |   0%  |                                                                                                                                            |=========                                                                                                                           |   7%  |                                                                                                                                            |==================                                                                                                                  |  13%  |                                                                                                                                            |==========================                                                                                                          |  20%  |                                                                                                                                            |===================================                                                                                                 |  27%  |                                                                                                                                            |============================================                                                                                        |  33%  |                                                                                                                                            |=====================================================                                                                               |  40%  |                                                                                                                                            |==============================================================                                                                      |  47%  |                                                                                                                                            |======================================================================                                                              |  53%  |                                                                                                                                            |===============================================================================                                                     |  60%  |                                                                                                                                            |========================================================================================                                            |  67%  |                                                                                                                                            |=================================================================================================                                   |  73%  |                                                                                                                                            |==========================================================================================================                          |  80%  |                                                                                                                                            |==================================================================================================================                  |  87%  |                                                                                                                                            |===========================================================================================================================         |  93%  |                                                                                                                                            |====================================================================================================================================| 100%
+#>   |                                                                                                                           |                                                                                                                   |   0%  |                                                                                                                           |========                                                                                                           |   7%  |                                                                                                                           |===============                                                                                                    |  13%  |                                                                                                                           |=======================                                                                                            |  20%  |                                                                                                                           |===============================                                                                                    |  27%  |                                                                                                                           |======================================                                                                             |  33%  |                                                                                                                           |==============================================                                                                     |  40%  |                                                                                                                           |======================================================                                                             |  47%  |                                                                                                                           |=============================================================                                                      |  53%  |                                                                                                                           |=====================================================================                                              |  60%  |                                                                                                                           |=============================================================================                                      |  67%  |                                                                                                                           |====================================================================================                               |  73%  |                                                                                                                           |============================================================================================                       |  80%  |                                                                                                                           |====================================================================================================               |  87%  |                                                                                                                           |===========================================================================================================        |  93%  |                                                                                                                           |===================================================================================================================| 100%
 ```
 
 ## Example 4: Perform Hierarchical Clustering
@@ -147,6 +147,60 @@ settings$clustGroups <- 3
 
 # Run t-SNE and Mclust clustering
 hierarchical_result <- immunaut(dataset, settings)
-#> [1] "====> Noise indices:  25"
+#> [1] "====> Noise indices:  31"
 #> [1] "====> Noise indices done"
 ```
+
+## Example 5: Using Immune Response Dataset for LAIV Vaccination in Pediatric Cohorts Dataset
+
+``` r
+
+library(immunaut)
+
+library(ggplot2)
+
+data("immunautLAIV")
+
+
+file_header <- generate_file_header(immunautLAIV)
+
+# Base settings (shared across all runs unless overridden):
+settings <- list()
+settings$fileHeader <- file_header
+
+settings$selectedColumns <- c(
+  "H1_HAI_FC","H3_HAI_FC","B_HAI_FC","H1N1_NA_FC","H3_HA_IgA_FC",
+  "B_HA_IgA_FC","B_NA_IgA_FC","H1_CD8_IFNg_FC","H3_CD8_IFNg_FC",
+  "H3_CD8_IL2_FC","HAB_CD8_IFNg_FC","HAB_CD8_IL2_FC","NC99_H1_FC",
+  "SWISS_H3_FC","HK14_H3_FC","KAN_H3_FC","B_PHU_FC","cH7_IgA_FC",
+  "N2_FC","cH6_FC"
+)
+settings$groupingVariables <- c(
+  "max_HAI_responder","max_iga_responder","max_mnp_cd4_responder",
+  "max_mnp_cd8_responder ","year","sex","v0_resp_virus_positive",
+  "h1_v2_shed","h3_v2_shed","b_v2_shed","h1_v7_shed","h3_v7_shed",
+  "b_v7_shed","h1_v0_seropositive","h3_v0_seropositive","b_v0_seropositive"
+)
+
+
+settings$preProcessDataset <- c("medianImpute","center","scale","corr","nzv","zv")
+
+result <- immunaut(immunautLAIV, settings)
+
+p <- plot_clustered_tsne(result$tsne_clust$info.norm, 
+                                result$tsne_clust$cluster_data, 
+                                result$settings) 
+# Adjust the plot: use Set2 palette and a nice minimal theme
+p <- p +
+  scale_color_brewer(palette = "Set2") +
+  theme_minimal(base_size = 12) +
+  labs(
+    title    = "Clustered t-SNE of Pediatric LAIV Data",
+    subtitle = "Comprehensive Immune Response Dataset (244 Children)",
+    color    = "Cluster"
+  )
+
+print(p)
+```
+
+<img src="man/figures/README-example-5-1.png" width="100%" />

@@ -307,6 +307,9 @@ find_optimal_resolution <- function(graph,
     
     res <- start_resolution
     
+    min_clust <- min(target_clusters_range)
+    max_clust <- max(target_clusters_range)
+
     # Iterate over resolutions from start_resolution to end_resolution
     while (res <= end_resolution) {
         lc <- igraph::cluster_louvain(graph, resolution = res)  # Perform Louvain clustering
@@ -314,7 +317,7 @@ find_optimal_resolution <- function(graph,
         num_clusters <- length(unique(igraph::membership(lc)))  # Get the number of clusters
 
         # Skip clusterings that are not within the target_clusters_range
-        if (num_clusters < target_clusters_range[1] || num_clusters > target_clusters_range[2]) {
+        if (num_clusters < min_clust || num_clusters > max_clust) {
             res <- res + resolution_increment
             next
         }
@@ -326,9 +329,11 @@ find_optimal_resolution <- function(graph,
     }
     
     # Filter results for modularity above threshold and number of clusters within the target range
-    valid_results <- results[results$modularity >= min_modularity &
-                               results$num_clusters >= target_clusters_range[1] &
-                               results$num_clusters <= target_clusters_range[2], ]
+    valid_results <- results[
+        results$modularity >= min_modularity &
+        results$num_clusters >= min_clust &
+        results$num_clusters <= max_clust,
+    ]
     
     if (nrow(valid_results) == 0) {
         message("===> INFO: No valid resolutions found")

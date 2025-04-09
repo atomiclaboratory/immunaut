@@ -1,6 +1,6 @@
 Package: immunaut
-Version: 1.0.1
-Date: 2024-10-24
+Version: 1.0.2
+Date: 2025-04-09
 Title: Machine Learning Immunogenicity and Vaccine Response Analysis
 Authors@R: c(person("Ivan", "Tomic", role=c("aut","cre","cph"), email="info@ivantomic.com", comment = c(ORCID = "0000-0003-3596-681X")), 
             person("Adriana", "Tomic", role=c("aut","ctb","cph","fnd"), email="tomic.adriana@gmail.com", comment = c(ORCID = "0000-0001-9885-3535")),
@@ -41,5 +41,5 @@ License: GPL-3
 Encoding: UTF-8
 LazyLoad: yes
 LazyData: yes
-RoxygenNote: 7.3.1
+RoxygenNote: 7.3.2.9000
 Roxygen: list(markdown = TRUE)
