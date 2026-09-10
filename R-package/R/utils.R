@@ -1,20 +1,31 @@
 #' Pre-process and Resample Dataset
 #'
 #' This function applies pre-processing transformations to the dataset, then resamples it.
+#' Pre-processing parameters are estimated strictly from the training dataset (`datasetData`),
+#' and optionally applied to a separate test dataset (`testData`) to prevent data leakage.
 #'
-#' @param datasetData Dataframe to be pre-processed
-#' @param preProcess Vector of pre-processing methods to apply
-#' @param selectedOutcomeColumns Character vector of outcome columns
-#' @param outcome_and_classes List of outcomes and their classes
+#' @param datasetData Dataframe to be pre-processed (e.g. training data).
+#' @param preProcess Vector of pre-processing methods to apply.
+#' @param selectedOutcomeColumns Character vector of outcome columns.
+#' @param outcome_and_classes List of outcomes and their classes.
 #' @param settings A named list containing settings for the analysis. If NULL, defaults will be used. The settings list may contain:
 #'        - `seed`: An integer seed value for reproducibility.
+#' @param testData Optional dataframe of test data to be pre-processed using the parameters estimated from `datasetData`. Default is NULL.
 #'
-#' @return A list containing the pre-processing mapping and the processed dataset
+#' @return A list containing:
+#' - `preProcessMapping`: The pre-processing mapping (e.g. PCA rotation matrix if applicable).
+#' - `datasetData`: The pre-processed training dataset.
+#' - `testData`: The pre-processed test dataset (if `testData` was provided, otherwise NULL).
+#' - `preprocessParams`: A list containing the fitted preprocessing parameter objects (`impute` and `transform`).
 #' @keywords internal
-preProcessResample <- function(datasetData, preProcess, selectedOutcomeColumns, outcome_and_classes, settings){
+preProcessResample <- function(datasetData, preProcess, selectedOutcomeColumns, outcome_and_classes, settings, testData = NULL){
     # ==> 2 PREPROCCESING: Skewness and normalizing of the numeric predictors
     preProcessMapping <- NULL
-    preProcessedData <- NULL
+    preProcessedData_imp <- NULL
+    preProcessedData_no_imp <- NULL
+    preprocessParams_impute <- NULL
+    preprocessParams_no_impute <- NULL
+
     if(length(preProcess) > 0 ){
         transformations <- paste(preProcess, sep=",", collapse = ",")
         message(paste0("===> INFO: Pre-processing transformation(s) (",transformations,") \r\n"))
@@ -27,47 +38,55 @@ preProcessResample <- function(datasetData, preProcess, selectedOutcomeColumns, 
         message(paste0("===> INFO: Pre-processing methods_impute: ",length(methods_impute)," methods_no_impute ",length(methods_no_impute),"\r\n"))
 
         if(length(methods_impute) > 0){
-            preProcess <- methods_impute
-            preProcessedData <- preProcessData(datasetData, selectedOutcomeColumns, outcome_and_classes, preProcess, settings)
-            datasetData <- preProcessedData$processedMat
+            preProcessedData_imp <- preProcessData(datasetData, selectedOutcomeColumns, outcome_and_classes, methods_impute, settings, testData = testData)
+            if(!is.null(preProcessedData_imp)){
+                datasetData <- preProcessedData_imp$processedMat
+                if (!is.null(testData)) {
+                    testData <- preProcessedData_imp$processedTestMat
+                }
+                preprocessParams_impute <- preProcessedData_imp$preprocessParams
+            }
         }
 
         if(length(methods_no_impute) > 0){
-            preProcess <- methods_no_impute
-            preProcessedData <- preProcessData(datasetData, selectedOutcomeColumns, outcome_and_classes, preProcess, settings)
+            preProcessedData_no_imp <- preProcessData(datasetData, selectedOutcomeColumns, outcome_and_classes, methods_no_impute, settings, testData = testData)
+            if(!is.null(preProcessedData_no_imp)){
+                datasetData <- preProcessedData_no_imp$processedMat
+                if (!is.null(testData)) {
+                    testData <- preProcessedData_no_imp$processedTestMat
+                }
+                preprocessParams_no_impute <- preProcessedData_no_imp$preprocessParams
+
+                if("pca" %in% methods_no_impute && !is.null(preProcessedData_no_imp$preprocessParams)){
+                    preProcessMapping <- preProcessedData_no_imp$preprocessParams$rotation
+                }
+            }
         }
 
-        if(!is.null(preProcessedData)){
-            ## Final processed data-frame
-            datasetData <- preProcessedData$processedMat 
-
-            if("pca" %in% preProcess){
-                preProcessMapping <- preProcessedData$preprocessParams$rotation
-                ## res.var <- factoextra::get_pca_var(res.pca)
-                ## res.var$coord          # Coordinates
-                ## res.var$contrib        # Contributions to the PCs
-                ## res.var$cos2           # Quality of representation 
-                ## corrplot::corrplot(res.var$cos2, is.corr = FALSE)
-            }else if("ica" %in% preProcess){
-                ## TODO not implemented
-                ## preProcessMapping <- preProcessedData$processedMat
-            }
-        }else{
+        if(is.null(preProcessedData_imp) && is.null(preProcessedData_no_imp)){
             message(paste0("===> INFO: Could not apply preprocessing transformations, continuing without preprocessing.. \r\n"))
         }
     }
 
-    return(list(preProcessMapping = preProcessMapping, datasetData = datasetData))
+    return(list(
+        preProcessMapping = preProcessMapping,
+        datasetData = datasetData,
+        testData = testData,
+        preprocessParams = list(
+            impute = preprocessParams_impute,
+            transform = preprocessParams_no_impute
+        )
+    ))
 }
 
 #' Preprocess a Dataset Using Specified Methods
 #'
 #' This function preprocesses a dataset by applying a variety of transformation methods, 
 #' such as centering, scaling, or imputation. Users can also specify columns to exclude 
-#' from preprocessing. The function supports a variety of preprocessing methods, including 
-#' dimensionality reduction and imputation techniques, and ensures proper method application order.
+#' from preprocessing. Preprocessing parameters are estimated strictly from the training 
+#' dataset (`data`) and optionally applied to a test dataset (`testData`) to prevent data leakage.
 #'
-#' @param data A data frame or matrix representing the dataset to be preprocessed.
+#' @param data A data frame or matrix representing the dataset to be preprocessed (e.g. training set).
 #' @param outcome A character string representing the outcome variable, if any, 
 #'        for outcome-based transformations.
 #' @param excludeClasses A character vector specifying the column names to exclude from 
@@ -80,17 +99,18 @@ preProcessResample <- function(datasetData, preProcess, selectedOutcomeColumns, 
 #'        - `"center"`: Subtract the mean from each feature.
 #'        - `"scale"`: Divide features by their standard deviation.
 #'        - `"pca"`: Principal Component Analysis for dimensionality reduction.
-#'        - Other methods such as `"BoxCox"`, `"YeoJohnson"`, `"range"`, etc.
+#'        - Other methods such as `"BoxCox"`, `"YeoJohnson"`, `"range"`, `"zv"`, `"nzv"`, `"corr"`.
 #' @param settings A named list containing settings for the analysis. If NULL, defaults will be used. The settings list may contain:
 #'        - `seed`: An integer seed value for reproducibility.
-#' 
+#' @param testData Optional data frame representing the test set to be transformed using the parameters fitted on `data`. Default is `NULL`.
 #'
 #' @importFrom caret preProcess
 #' @importFrom dplyr filter arrange select %>%
 #' @importFrom stats predict
 #'
 #' @return A list containing:
-#' - `processedMat`: The preprocessed dataset.
+#' - `processedMat`: The preprocessed training dataset.
+#' - `processedTestMat`: The preprocessed test dataset (if `testData` was provided, otherwise NULL).
 #' - `preprocessParams`: The preprocessing parameters that were applied to the dataset.
 #'
 #' @details
@@ -101,17 +121,26 @@ preProcessResample <- function(datasetData, preProcess, selectedOutcomeColumns, 
 #' specify outcome variables for specialized preprocessing.
 #'
 #' @keywords internal
-preProcessData <- function(data, outcome, excludeClasses, methods = c("center", "scale"), settings)
+preProcessData <- function(data, outcome, excludeClasses, methods = c("center", "scale"), settings, testData = NULL)
 {
     set.seed(settings$seed)
     if(length(methods) == 0){
         methods <- c("center", "scale")
     }
+
+    # Identify columns to exclude from preprocessing (e.g., outcome or grouping variables)
+    whichToExclude <- character(0)
     if(!is.null(excludeClasses)){
-        whichToExclude <- sapply( names(data), function(y) any(sapply(excludeClasses, function(excludeClass)  return (y %in% excludeClass) )) )
-        dataset <- data[!whichToExclude]
+        whichToExclude <- intersect(colnames(data), unlist(excludeClasses))
+        dataset <- data[, !colnames(data) %in% whichToExclude, drop = FALSE]
+        if (!is.null(testData)) {
+            test_dataset <- testData[, !colnames(testData) %in% whichToExclude, drop = FALSE]
+        }
     }else{
         dataset <- data
+        if (!is.null(testData)) {
+            test_dataset <- testData
+        }
     }
 
     ### Make sure that ordering is correct!
@@ -121,32 +150,85 @@ preProcessData <- function(data, outcome, excludeClasses, methods = c("center", 
 
     methods_sorted <- processing_values %>% filter(value %in% methods) %>% arrange(order) %>% select(value)
     methods_sorted <- methods_sorted$value
+    if(length(methods_sorted) == 0){
+        methods_sorted <- methods
+    }
 
     transformations <- paste(methods_sorted, sep=",", collapse = ",")
 
     message(paste0("===> INFO: Pre-processing transformation sorted (",transformations,")"))
 
-    if(length(colnames(dataset)) < 2){
-        message(paste0("===> INFO: Pre-processing less than 2 columns detected removing some preprocessing methods"))
+    if(ncol(dataset) < 1){
+        message("===> INFO: Pre-processing 0 columns detected, returning NULL")
         return(NULL)
     }
 
-    # calculate the pre-process parameters from the dataset
-    if(!is.null(outcome)){
-        preprocessParams <- preProcess(dataset, method = methods_sorted, outcome = outcome, n.comp = 25, verbose = FALSE, cutoff = 0.5)    
-    }else{
-        preprocessParams <- preProcess(dataset, method = methods_sorted, n.comp = 25, verbose = FALSE)   
+    if(ncol(dataset) < 2){
+        message("===> INFO: Pre-processing less than 2 columns detected; removing multi-column methods")
+        methods_sorted <- setdiff(methods_sorted, c("pca", "corr", "ica"))
+        if(length(methods_sorted) == 0){
+            return(NULL)
+        }
     }
-    # transform the dataset using the parameters
+
+    # calculate the pre-process parameters strictly from the training dataset
+    outcome_vec <- NULL
+    if (!is.null(outcome)) {
+        if (is.character(outcome) && length(outcome) == 1 && !is.na(outcome)) {
+            if (outcome %in% colnames(data)) {
+                outcome_vec <- data[[outcome]]
+            } else if (outcome %in% colnames(dataset)) {
+                outcome_vec <- dataset[[outcome]]
+            }
+        } else if ((is.numeric(outcome) || is.factor(outcome)) && length(outcome) == nrow(dataset)) {
+            outcome_vec <- outcome
+        }
+    }
+
+    if (!is.null(outcome_vec)) {
+        preprocessParams <- caret::preProcess(dataset, method = methods_sorted, outcome = outcome_vec, n.comp = 25, verbose = FALSE, cutoff = 0.5)    
+    } else {
+        preprocessParams <- caret::preProcess(dataset, method = methods_sorted, n.comp = 25, verbose = FALSE)   
+    }
+
+    # transform the training dataset using the parameters
     processedMat <- stats::predict(preprocessParams, newdata=dataset)
 
-    if(!is.null(excludeClasses)){
-        # summarize the transformed dataset
-        processedMat[excludeClasses] <- data[excludeClasses]
+    # restore excluded columns to training dataset
+    if(length(whichToExclude) > 0){
+        for (col in whichToExclude) {
+            processedMat[[col]] <- data[[col]]
+        }
     }
+    if (all(colnames(data) %in% colnames(processedMat))) {
+        processedMat <- processedMat[, colnames(data), drop = FALSE]
+    } else {
+        kept_cols <- colnames(data)[colnames(data) %in% colnames(processedMat)]
+        extra_cols <- setdiff(colnames(processedMat), colnames(data))
+        processedMat <- processedMat[, c(kept_cols, extra_cols), drop = FALSE]
+    }
+
+    # transform the test dataset if provided, using the exact parameters fitted on training data
+    processedTestMat <- NULL
+    if (!is.null(testData)) {
+        processedTestMat <- stats::predict(preprocessParams, newdata=test_dataset)
+        if (length(whichToExclude) > 0) {
+            for (col in whichToExclude) {
+                processedTestMat[[col]] <- testData[[col]]
+            }
+        }
+        if (all(colnames(testData) %in% colnames(processedTestMat))) {
+            processedTestMat <- processedTestMat[, colnames(testData), drop = FALSE]
+        } else {
+            kept_cols_t <- colnames(testData)[colnames(testData) %in% colnames(processedTestMat)]
+            extra_cols_t <- setdiff(colnames(processedTestMat), colnames(testData))
+            processedTestMat <- processedTestMat[, c(kept_cols_t, extra_cols_t), drop = FALSE]
+        }
+    }
+
     message(paste0("===> INFO: Pre-processing done!"))
     
-    return(list(processedMat = processedMat, preprocessParams = preprocessParams))
+    return(list(processedMat = processedMat, processedTestMat = processedTestMat, preprocessParams = preprocessParams))
 }
 
 #' @title Cast All Strings to NA
@@ -219,24 +301,11 @@ isNumeric <- function(x) {
 #' @return boolean TRUE if the variable is considered empty, FALSE otherwise.
 #' @keywords internal
 is_var_empty <- function(variable){
-    is_empty <- FALSE
-
-    if(length(variable) == 0){
-        is_empty <- TRUE
-    }else if(!is.null(variable) & rlang::is_empty(variable)){
-        is_empty <- TRUE
-    }else if(is.null(variable)){
-        is_empty <- TRUE
-    }
-
-    if(is_empty == FALSE && !is.vector(variable) && !is.data.frame(variable)){
-        print(variable)
-        if(variable == ""){
-            is_empty <- TRUE
-        }
-    }
-
-    return(is_empty)
+    if (length(variable) == 0) return(TRUE)
+    if (is.null(variable)) return(TRUE)
+    if (rlang::is_empty(variable)) return(TRUE)
+    if (is.character(variable) && length(variable) == 1 && (is.na(variable) || variable == "")) return(TRUE)
+    return(FALSE)
 }
 
 
@@ -463,17 +532,18 @@ generate_demo_data <- function(n_subjects = 1000, n_features = 200, missing_prob
 #'
 #' @keywords internal
 remove_outliers <- function(dataset, settings) {
-    if(settings$datasetAnalysisRemoveOutliersDownstream == TRUE) {
-        print("===> INFO: Trying to remove outliers from dataset")
-        if("pandora_cluster" %in% names(dataset)) {
-            if(100 %in% dataset$pandora_cluster) {
-                dataset <- dataset[dataset$pandora_cluster != 100, ]
-                print("===> INFO: Rows with pandora_cluster == 100 have been removed.")
+    if (isTRUE(settings$datasetAnalysisRemoveOutliersDownstream)) {
+        message("===> INFO: Trying to remove outliers from dataset")
+        if ("pandora_cluster" %in% names(dataset)) {
+            outlier_rows <- which(dataset$pandora_cluster == 100 | dataset$pandora_cluster == "100")
+            if (length(outlier_rows) > 0) {
+                dataset <- dataset[-outlier_rows, , drop = FALSE]
+                message("===> INFO: Rows with pandora_cluster == 100 have been removed.")
             } else {
-                print("===> INFO: Cluster 100 does not exist in pandora_cluster.")
+                message("===> INFO: Cluster 100 does not exist in pandora_cluster.")
             }
         } else {
-            print("===> INFO: No outliers detected")
+            message("===> INFO: No outliers detected")
         }
     }
     return(dataset)
@@ -483,7 +553,7 @@ remove_outliers <- function(dataset, settings) {
 #'
 #' This function generates a t-SNE plot with cluster assignments using consistent color mappings. 
 #' It includes options for plotting points based on their t-SNE coordinates and adding cluster 
-#' labels at the cluster centroids. The plot is saved as an SVG file in a temporary directory.
+#' labels at the cluster centroids.
 #'
 #' @param info.norm A data frame containing t-SNE coordinates (`tsne1`, `tsne2`) and cluster assignments (`pandora_cluster`) for each point.
 #' @param cluster_data A data frame containing the cluster centroids and labels, with columns `tsne1`, `tsne2`, `label`, and `pandora_cluster`.
@@ -498,10 +568,10 @@ remove_outliers <- function(dataset, settings) {
 #'
 #' @return ggplot2 object representing the clustered t-SNE plot.
 #'
-#' @importFrom ggplot2 ggplot aes geom_point geom_label labs theme theme_classic scale_color_manual element_text element_rect theme_set unit
+#' @importFrom ggplot2 ggplot aes geom_point geom_label labs theme theme_classic scale_color_manual element_text element_rect unit
 #' @importFrom grDevices svg dev.off colorRampPalette
 #' @importFrom RColorBrewer brewer.pal
-
+#'
 #' @examples
 #' \dontrun{
 #' # Example usage
@@ -510,53 +580,69 @@ remove_outliers <- function(dataset, settings) {
 #' }
 #' @export
 plot_clustered_tsne <- function(info.norm, cluster_data, settings){
-    # Ensure the theme is a valid ggplot2 theme
-    if (!exists(settings$theme, envir = asNamespace("ggplot2"))) {
-        message(paste0("Invalid ggplot2 theme: ", settings$theme, ". Using 'theme_classic' instead."))
-        settings$theme <- "theme_classic"
+    font_size <- if (!is.null(settings$fontSize) && is.numeric(settings$fontSize)) settings$fontSize else 12
+    point_size <- if (!is.null(settings$pointSize) && is.numeric(settings$pointSize)) settings$pointSize else 2
+    legend_pos <- if (!is.null(settings$legendPosition)) settings$legendPosition else "right"
+    palette_name <- if (!is.null(settings$colorPalette)) settings$colorPalette else "RdPu"
+
+    # Theme selection (applied directly to ggplot, avoiding global theme_set side effects)
+    theme_name <- if (!is.null(settings$theme) && exists(settings$theme, envir = asNamespace("ggplot2"))) {
+        settings$theme
+    } else {
+        if (!is.null(settings$theme)) {
+            message(paste0("Invalid ggplot2 theme: ", settings$theme, ". Using 'theme_classic' instead."))
+        }
+        "theme_classic"
     }
-    
-    # Apply the theme using ggplot2 namespace
-    theme_to_apply <- get(settings$theme, envir = asNamespace("ggplot2"))(base_size = settings$fontSize)
-    theme_set(theme_to_apply)
+    base_theme <- get(theme_name, envir = asNamespace("ggplot2"))(base_size = font_size)
 
+    # Preserve cluster assignments as character/factor without coercing strings to NA via as.numeric
     info.norm$pandora_cluster <- as.character(info.norm$pandora_cluster)
-    info.norm$pandora_cluster <- as.numeric(info.norm$pandora_cluster)
-
     cluster_data$pandora_cluster <- as.character(cluster_data$pandora_cluster)
-    cluster_data$pandora_cluster <- as.numeric(cluster_data$pandora_cluster)
 
     # Convert 'cluster' to a factor with consistent levels in both data frames
-    unique_clusters <- sort(unique(c(info.norm$pandora_cluster, cluster_data$pandora_cluster)))
+    unique_clusters <- unique(c(info.norm$pandora_cluster, cluster_data$pandora_cluster))
+    unique_clusters <- unique_clusters[!is.na(unique_clusters)]
+
+    suppressWarnings({
+        num_check <- as.numeric(unique_clusters)
+        if (!any(is.na(num_check))) {
+            unique_clusters <- unique_clusters[order(num_check)]
+        } else {
+            unique_clusters <- sort(unique_clusters)
+        }
+    })
 
     info.norm$pandora_cluster <- factor(info.norm$pandora_cluster, levels = unique_clusters)
     cluster_data$pandora_cluster <- factor(cluster_data$pandora_cluster, levels = unique_clusters)
 
+    n_colors <- max(1, length(unique_clusters))
+    n_brewer <- min(8, max(3, n_colors))
     colorsTemp <- grDevices::colorRampPalette(
-      RColorBrewer::brewer.pal(min(8, max(3, length(unique_clusters))), settings$colorPalette)
-    )(length(unique_clusters))
+        RColorBrewer::brewer.pal(n_brewer, palette_name)
+    )(n_colors)
 
     # Create the plot with consistent color mapping
     plotData <- ggplot(info.norm, aes(x = tsne1, y = tsne2)) + 
-                    geom_point(aes(color = pandora_cluster), size = settings$pointSize, alpha = 0.7) +  # Color by cluster for points
-                    scale_color_manual(values = colorsTemp) +  # Use Brewer palette for consistent color scale
-                    labs(x = "t-SNE dimension 1", y = "t-SNE dimension 2", color = "Cluster") +  # Label axes and legend
-                    theme_classic(base_size = settings$fontSize) +  # Use a classic theme as base
-                    theme(legend.position = settings$legendPosition,  # Adjust legend position
-                          legend.background = element_rect(fill = "white", colour = "black"),  # Legend background
-                          legend.key.size = unit(0.5, "cm"),  # Size of legend keys
-                          legend.title = element_text(face = "bold"),  # Bold legend title
-                          plot.background = element_rect(fill = "white", colour = NA),  # White plot background
-                          axis.title.x = element_text(size = settings$fontSize * 1.2),  # Increase X axis label size
-                          axis.title.y = element_text(size = settings$fontSize * 1.2))  # Increase Y axis label size
+                    geom_point(aes(color = pandora_cluster), size = point_size, alpha = 0.7) +
+                    scale_color_manual(values = colorsTemp) +
+                    labs(x = "t-SNE dimension 1", y = "t-SNE dimension 2", color = "Cluster") +
+                    base_theme +
+                    theme(legend.position = legend_pos,
+                          legend.background = element_rect(fill = "white", colour = "black"),
+                          legend.key.size = unit(0.5, "cm"),
+                          legend.title = element_text(face = "bold"),
+                          plot.background = element_rect(fill = "white", colour = NA),
+                          axis.title.x = element_text(size = font_size * 1.2),
+                          axis.title.y = element_text(size = font_size * 1.2))
 
     # Adding cluster center labels with the same color mapping
     plotData <- plotData +
                 geom_label(data = cluster_data, aes(x = tsne1, y = tsne2, label = as.character(label), color = pandora_cluster),
-                           fill = "white",  # Background color of the label; adjust as needed
-                           size = settings$fontSize / 2,  # Adjust text size within labels as needed
-                           fontface = "bold",  # Make text bold
-                           show.legend = FALSE)  # Do not show these labels in the legend
+                           fill = "white",
+                           size = font_size / 2,
+                           fontface = "bold",
+                           show.legend = FALSE)
 
     return(plotData)
 }
@@ -564,6 +650,8 @@ plot_clustered_tsne <- function(info.norm, cluster_data, settings){
 # Helper function to normalize scores with NA handling
 #' @keywords internal
 normalize <- function(x) {
-    if (max(x) == min(x)) return(rep(0.5, length(x)))  # Middle ground if no range
-    (x - min(x)) / (max(x) - min(x))
+    if (all(is.na(x))) return(rep(0.5, length(x)))
+    rng <- range(x, na.rm = TRUE)
+    if (rng[1] == rng[2]) return(rep(0.5, length(x)))
+    (x - rng[1]) / (rng[2] - rng[1])
 }

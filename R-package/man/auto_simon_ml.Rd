@@ -8,79 +8,67 @@ auto_simon_ml(dataset_ml, settings)
 }
 \arguments{
 \item{dataset_ml}{A data frame containing the dataset for training. All columns except the outcome
-column should contain the features.}
+column (and any specified in \code{settings$excludedColumns}) should contain the features.}
 
 \item{settings}{A list containing the following parameters:
 \itemize{
-\item{\code{outcome}}: A string specifying the name of the outcome column in \code{dataset_ml}. Defaults to "immunaut" if not provided.
-\item{\code{excludedColumns}}: A vector of column names to be excluded from the training data. Defaults to \code{NULL}.
-\item{\code{preProcessDataset}}: A vector of preprocessing steps to be applied (e.g., \code{c("center", "scale", "medianImpute")}). Defaults to \code{NULL}.
-\item{\code{selectedPartitionSplit}}: A numeric value specifying the proportion of data to be used for training. Must be between 0 and 1. Defaults to 0.7.
-\item{\code{selectedPackages}}: A character vector specifying the machine learning algorithms to be used for training (e.g., \code{"nb"}, \code{"rpart"}). Defaults to \code{c("nb", "rpart")}.
+\item{\code{outcome}}: A string specifying the name of the outcome column in \code{dataset_ml}. Defaults to \code{"immunaut"}.
+\item{\code{models}} or {\code{selectedPackages}}: A character vector specifying the machine learning algorithms to train (e.g., \code{"rpart"}, \code{"rf"}). Defaults to \code{c("nb", "rpart")}.
+\item{\code{trainTestRatio}} or {\code{selectedPartitionSplit}}: A numeric value specifying the proportion of data for training (between 0 and 1). Defaults to \code{0.7}.
+\item{\code{excludedColumns}}: A character vector of column names to be excluded from feature predictors. Defaults to \code{NULL}.
+\item{\code{preProcessDataset}}: A character vector of preprocessing transformations (e.g., \code{c("medianImpute", "center", "scale", "zv")}). Defaults to \code{NULL}.
+\item{\code{num_cores}}: Integer. The number of CPU cores to use for parallel training. Defaults to 2 (or 1 during CRAN check environments).
+\item{\code{kFold}}: Integer. The number of cross-validation folds. Defaults to 5.
+\item{\code{kFoldRepeat}}: Integer. The number of cross-validation repeats. Defaults to 1.
+\item{\code{trainingTimeout}}: Numeric. Timeout in seconds for training each individual model. Defaults to 180.
 }}
 }
 \value{
-A list where each element corresponds to a trained model for one of the algorithms specified in
-\code{settings$selectedPackages}. Each element contains:
+A list containing:
 \itemize{
-\item{\code{info}}: General information about the model, including resampling indices, problem type,
-and outcome mapping.
-\item{\code{training}}: The trained model object and variable importance.
-\item{\code{predictions}}: Predictions on the test set, including probabilities, confusion matrix,
-post-resample statistics, AUROC (for binary classification), and prAUC (for binary classification).
+\item{\code{models}}: A list where each element corresponds to a trained model. Contains \code{info}, \code{training}, and \code{predictions}.
+\item{\code{dataset}}: The combined preprocessed dataset.
+\item{\code{trainData}}: The preprocessed training dataset.
+\item{\code{testData}}: The preprocessed test dataset.
+\item{\code{is_binary_classification}}: Logical indicating whether the problem is binary classification.
+\item{\code{preProcessParams}}: The preprocessing parameter object(s) fitted on the training dataset.
 }
 }
 \description{
 This function automates the process of building machine learning models using the caret package.
 It supports both binary and multi-class classification and allows users to specify a list of
-machine learning algorithms to be trained on the dataset. The function splits the dataset into
-training and testing sets, applies preprocessing steps, and trains models using cross-validation.
-It computes relevant performance metrics such as confusion matrix, AUROC (for binary classification),
-and prAUC (for binary classification).
+machine learning algorithms to be trained on the dataset.
 }
 \details{
-The function performs preprocessing (e.g., centering, scaling, and imputation of missing values) on the dataset based on the provided settings.
-It splits the data into training and testing sets using the specified partition, trains models using cross-validation, and computes performance metrics.
+To prevent data leakage, the dataset is partitioned into training and testing sets \emph{before} any
+preprocessing is performed. Transformation parameters (imputation, centering, scaling, filtering)
+are learned exclusively from the training partition and applied without leakage to the test set.
 
-For binary classification problems, the function calculates AUROC and prAUC. For multi-class classification, it calculates macro-averaged AUROC, though prAUC is not used.
+The function partitions the data into training and testing sets prior to applying preprocessing,
+guaranteeing strict isolation between train and test distributions.
+Models are trained using repeated cross-validation via \code{caret::train()}.
 
-The function returns a list of trained models along with their performance metrics, including confusion matrix, variable importance, and post-resample metrics.
+For binary classification, AUROC and PR-AUC are calculated. For multi-class classification,
+macro-averaged AUROC, weighted AUROC, and macro-averaged F1 scores are computed from the test partition.
 }
 \examples{
-\dontrun{
-dataset <- read.csv("fc_wo_noise.csv", header = TRUE, row.names = 1)
+\donttest{
+# Generate demo dataset and run clustering pipeline
+demo_data <- generate_demo_data(n_subjects = 80, n_features = 8, desired_number_clusters = 3)
+settings <- list(preProcessDataset = c("medianImpute", "center", "scale"))
+result <- immunaut(demo_data, settings)
 
-# Generate a file header for the dataset to use in downstream analysis
-file_header <- generate_file_header(dataset)
-
-settings <- list(
-    fileHeader = file_header,
-    # Columns selected for analysis
-    selectedColumns = c("ExampleColumn1", "ExampleColumn2"), 
-    clusterType = "Louvain",
-    removeNA = TRUE,
-    preProcessDataset = c("scale", "center", "medianImpute", "corr", "zv", "nzv"),
-    target_clusters_range = c(3,4),
-    resolution_increments = c(0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5),
-    min_modularities = c(0.4, 0.5, 0.6, 0.7, 0.8, 0.85, 0.9),
-    pickBestClusterMethod = "Modularity",
-    seed = 1337
+# Train automated machine learning model on clustered cohort
+ml_settings <- list(
+    outcome = "immunaut",
+    models = c("rpart"),
+    excludedColumns = c("outcome", "age", "gender"),
+    preProcessDataset = c("medianImpute", "center", "scale"),
+    trainTestRatio = 0.7,
+    num_cores = 1
 )
-
-result <- immunaut(dataset, settings)
-dataset_ml <- result$dataset$original
-dataset_ml$pandora_cluster <- tsne_clust[[i]]$info.norm$pandora_cluster
-dataset_ml <- dplyr::rename(dataset_ml, immunaut = pandora_cluster)
-dataset_ml <- dataset_ml[, c("immunaut", setdiff(names(dataset_ml), "immunaut"))]
-settings_ml <- list(
-    excludedColumns = c("ExampleColumn0"),
-    preProcessDataset = c("scale", "center", "medianImpute", "corr", "zv", "nzv"),
-    selectedPartitionSplit = split,  # Use the current partition split
-    selectedPackages = c("rf", "RRF", "RRFglobal", "rpart2", "c5.0", "sparseLDA", 
-    "gcvEarth", "cforest", "gaussPRPoly", "monmlp", "slda", "spls"),
-    trainingTimeout = 180  # Timeout 3 minutes
-)
-ml_results <- auto_simon_ml(dataset_ml, settings_ml)
+ml_results <- auto_simon_ml(result$dataset$dataset_ml, ml_settings)
+print(names(ml_results$models))
 }
 
 }

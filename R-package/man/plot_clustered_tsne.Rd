@@ -28,7 +28,7 @@ ggplot2 object representing the clustered t-SNE plot.
 \description{
 This function generates a t-SNE plot with cluster assignments using consistent color mappings.
 It includes options for plotting points based on their t-SNE coordinates and adding cluster
-labels at the cluster centroids. The plot is saved as an SVG file in a temporary directory.
+labels at the cluster centroids.
 }
 \examples{
 \dontrun{

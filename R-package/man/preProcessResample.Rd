@@ -9,25 +9,38 @@ preProcessResample(
   preProcess,
   selectedOutcomeColumns,
   outcome_and_classes,
-  settings
+  settings,
+  testData = NULL
 )
 }
 \arguments{
-\item{datasetData}{Dataframe to be pre-processed}
+\item{datasetData}{Dataframe to be pre-processed (e.g. training data).}
 
-\item{preProcess}{Vector of pre-processing methods to apply}
+\item{preProcess}{Vector of pre-processing methods to apply.}
 
-\item{selectedOutcomeColumns}{Character vector of outcome columns}
+\item{selectedOutcomeColumns}{Character vector of outcome columns.}
 
-\item{outcome_and_classes}{List of outcomes and their classes}
+\item{outcome_and_classes}{List of outcomes and their classes.}
 
 \item{settings}{A named list containing settings for the analysis. If NULL, defaults will be used. The settings list may contain:
-- \code{seed}: An integer seed value for reproducibility.}
+\itemize{
+\item \code{seed}: An integer seed value for reproducibility.
+}}
+
+\item{testData}{Optional dataframe of test data to be pre-processed using the parameters estimated from \code{datasetData}. Default is NULL.}
 }
 \value{
-A list containing the pre-processing mapping and the processed dataset
+A list containing:
+\itemize{
+\item \code{preProcessMapping}: The pre-processing mapping (e.g. PCA rotation matrix if applicable).
+\item \code{datasetData}: The pre-processed training dataset.
+\item \code{testData}: The pre-processed test dataset (if \code{testData} was provided, otherwise NULL).
+\item \code{preprocessParams}: A list containing the fitted preprocessing parameter objects (\code{impute} and \code{transform}).
+}
 }
 \description{
 This function applies pre-processing transformations to the dataset, then resamples it.
+Pre-processing parameters are estimated strictly from the training dataset (\code{datasetData}),
+and optionally applied to a separate test dataset (\code{testData}) to prevent data leakage.
 }
 \keyword{internal}

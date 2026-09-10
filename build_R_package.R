@@ -17,8 +17,11 @@ library(knitr)  # Tools for dynamic report generation in R
 library(Rcpp)  # Interface for seamless integration of R and C++ code
 
 # Set the project directory (consider passing as an argument or setting externally)
-# Define the path to the package source directory.
-project_dir <- "/mnt/data/projects/atomic_laboratory/immunaut_r_package/R-package"
+# Define the path to the package source directory dynamically.
+project_dir <- file.path(getwd(), "R-package")
+if (!dir.exists(project_dir)) {
+    project_dir <- getwd()
+}
 setwd(project_dir)
 
 source(file.path(project_dir, "data-raw", "DATASET.R"))

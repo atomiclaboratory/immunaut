@@ -9,11 +9,12 @@ preProcessData(
   outcome,
   excludeClasses,
   methods = c("center", "scale"),
-  settings
+  settings,
+  testData = NULL
 )
 }
 \arguments{
-\item{data}{A data frame or matrix representing the dataset to be preprocessed.}
+\item{data}{A data frame or matrix representing the dataset to be preprocessed (e.g. training set).}
 
 \item{outcome}{A character string representing the outcome variable, if any,
 for outcome-based transformations.}
@@ -23,29 +24,36 @@ preprocessing. Default is \code{NULL}, meaning all columns are included in the p
 
 \item{methods}{A character vector specifying the preprocessing methods to apply.
 Default methods are \code{c("center", "scale")}. Available methods include:
-- \code{"medianImpute"}: Impute missing values with the median.
-- \code{"bagImpute"}: Impute missing values using bootstrap aggregation.
-- \code{"knnImpute"}: Impute missing values using k-nearest neighbors.
-- \code{"center"}: Subtract the mean from each feature.
-- \code{"scale"}: Divide features by their standard deviation.
-- \code{"pca"}: Principal Component Analysis for dimensionality reduction.
-- Other methods such as \code{"BoxCox"}, \code{"YeoJohnson"}, \code{"range"}, etc.}
+\itemize{
+\item \code{"medianImpute"}: Impute missing values with the median.
+\item \code{"bagImpute"}: Impute missing values using bootstrap aggregation.
+\item \code{"knnImpute"}: Impute missing values using k-nearest neighbors.
+\item \code{"center"}: Subtract the mean from each feature.
+\item \code{"scale"}: Divide features by their standard deviation.
+\item \code{"pca"}: Principal Component Analysis for dimensionality reduction.
+\item Other methods such as \code{"BoxCox"}, \code{"YeoJohnson"}, \code{"range"}, \code{"zv"}, \code{"nzv"}, \code{"corr"}.
+}}
 
 \item{settings}{A named list containing settings for the analysis. If NULL, defaults will be used. The settings list may contain:
-- \code{seed}: An integer seed value for reproducibility.}
+\itemize{
+\item \code{seed}: An integer seed value for reproducibility.
+}}
+
+\item{testData}{Optional data frame representing the test set to be transformed using the parameters fitted on \code{data}. Default is \code{NULL}.}
 }
 \value{
 A list containing:
 \itemize{
-\item \code{processedMat}: The preprocessed dataset.
+\item \code{processedMat}: The preprocessed training dataset.
+\item \code{processedTestMat}: The preprocessed test dataset (if \code{testData} was provided, otherwise NULL).
 \item \code{preprocessParams}: The preprocessing parameters that were applied to the dataset.
 }
 }
 \description{
 This function preprocesses a dataset by applying a variety of transformation methods,
 such as centering, scaling, or imputation. Users can also specify columns to exclude
-from preprocessing. The function supports a variety of preprocessing methods, including
-dimensionality reduction and imputation techniques, and ensures proper method application order.
+from preprocessing. Preprocessing parameters are estimated strictly from the training
+dataset (\code{data}) and optionally applied to a test dataset (\code{testData}) to prevent data leakage.
 }
 \details{
 The function applies various transformations to the dataset as specified by the user. It ensures

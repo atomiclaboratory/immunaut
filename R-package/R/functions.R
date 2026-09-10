@@ -29,7 +29,11 @@
 #' 
 #' @keywords internal
 calculate_tsne <- function(dataset, settings, removeGroups = TRUE){
-    set.seed(1337)
+    if (!is.null(settings$seed)) {
+        set.seed(settings$seed)
+    } else {
+        set.seed(1337)
+    }
 
     # Start logging
     message("===> Starting t-SNE calculation")
@@ -68,7 +72,7 @@ calculate_tsne <- function(dataset, settings, removeGroups = TRUE){
 
     # Remove zero variance columns
     message(paste0("===> INFO: Remove zero variance columns"))
-    tsne_data <- tsne_data %>% select(where(~ var(., na.rm = TRUE) != 0))
+    tsne_data <- tsne_data %>% select(where(~ isTRUE(stats::var(., na.rm = TRUE) > 0)))
     if (ncol(tsne_data) < 1) {
         stop("Not enough variable numeric columns to perform t-SNE.")
     }
@@ -95,13 +99,20 @@ calculate_tsne <- function(dataset, settings, removeGroups = TRUE){
 
     message(paste0("===> INFO: Using initial_dims: ", initial_dims))
 
-    # Adjust perplexity dynamically if not provided
+    # Adjust perplexity dynamically if not provided, or clamp if too large for sample size
+    max_perplexity <- floor((num_samples - 1) / 3)
+    if (max_perplexity < 1) stop("Not enough data to compute perplexity.")
+
     if (!is.null(settings$perplexity) && settings$perplexity > 0) {
-        perplexity <- settings$perplexity
-        message(paste0("===> INFO: Using provided perplexity: ", perplexity))
+        if (settings$perplexity > max_perplexity) {
+            message(paste0("===> INFO: Perplexity (", settings$perplexity, ") exceeds maximum for ", 
+                           num_samples, " samples; adjusting to ", max_perplexity))
+            perplexity <- max_perplexity
+        } else {
+            perplexity <- settings$perplexity
+        }
+        message(paste0("===> INFO: Using perplexity: ", perplexity))
     } else {
-        max_perplexity <- floor((num_samples - 1) / 3)
-        if (max_perplexity < 1) stop("Not enough data to compute perplexity.")
         perplexity <- min(30, max_perplexity)
         message(paste0("===> INFO: Using dynamic perplexity: ", perplexity))
     }
@@ -245,11 +256,12 @@ calculate_tsne <- function(dataset, settings, removeGroups = TRUE){
 #' @keywords internal
 cluster_tsne_knn_louvain <- function(info.norm, tsne.norm, settings, resolution_increment = 0.1, min_modularity = 0.5){
 
-    # Adjust KNN clusters if needed
-    knn_clusters <- settings$knn_clusters
-    if (nrow(tsne.norm$Y) < knn_clusters) {
-        knn_clusters <- round(nrow(tsne.norm$Y) / 2)
-        message(paste0("===> INFO: Adjusted KNN clusters to half the number of samples: ", knn_clusters))
+    # Adjust KNN clusters if needed (k must be < nrow)
+    knn_clusters <- if (!is.null(settings$knn_clusters) && is.numeric(settings$knn_clusters)) settings$knn_clusters else 60
+    max_k <- max(1, nrow(tsne.norm$Y) - 1)
+    if (knn_clusters > max_k) {
+        knn_clusters <- max(1, min(round(nrow(tsne.norm$Y) / 2), max_k))
+        message(paste0("===> INFO: Adjusted KNN clusters to: ", knn_clusters))
     }
     # Determine the dimensionality of the dataset
     n_obs <- nrow(tsne.norm$Y)
@@ -488,14 +500,14 @@ cluster_tsne_hierarchical <- function(info.norm, tsne.norm, settings) {
         }
 
         if(length(noise_indices) > 0){
-            print(paste("====> Noise indices: ", length(noise_indices)))
+            message(paste("====> Noise indices: ", length(noise_indices)))
             if(!"100" %in% levels(info.norm$pandora_cluster)) {
                 info.norm$pandora_cluster <- factor(info.norm$pandora_cluster, levels = c(levels(info.norm$pandora_cluster), "100"))
-                info.norm$pandora_cluster[noise_indices] <- "100"
             }
+            info.norm$pandora_cluster[noise_indices] <- "100"
         }
 
-        print(paste("====> Noise indices done"))
+        message("====> Noise indices done")
 
     } else {
         warning("Not enough data points for hierarchical clustering.")
@@ -652,12 +664,12 @@ cluster_tsne_mclust <- function(info.norm, tsne.norm, settings) {
             message(paste("====> Noise indices: ", length(noise_indices)))
             if(!"100" %in% levels(info.norm$pandora_cluster)) {
                 info.norm$pandora_cluster <- factor(info.norm$pandora_cluster, levels = c(levels(info.norm$pandora_cluster), "100"))
-                info.norm$pandora_cluster[noise_indices] <- "100"
             }
+            info.norm$pandora_cluster[noise_indices] <- "100"
         }
 
     } else {
-        warning("Not enough data points for hierarchical clustering.")
+        warning("Not enough data points for Mclust clustering.")
     }
 
     # Ensure all cluster assignments, including outliers marked as "100", are recognized as valid levels
@@ -744,21 +756,23 @@ cluster_tsne_density <- function(info.norm, tsne.norm, settings){
     eps <- stats::quantile(k_dist, eps_quantile)
 
 	ds.norm = fpc::dbscan(tsne_data, eps = eps, MinPts = minPts)
-	info.norm$pandora_cluster = factor(ds.norm$cluster)
+    raw_clusters <- ds.norm$cluster
+    raw_clusters[is.na(raw_clusters) | raw_clusters == 0] <- 100
+    info.norm$pandora_cluster <- factor(as.character(raw_clusters))
 
-    print(paste("====> Density-based clustering"))
+    message("====> Density-based clustering")
 
-    # Replace NA values with 100 specifically
-    na_indices <- is.na(info.norm$pandora_cluster)
-    info.norm$pandora_cluster[na_indices] <- 100
-
-    # Compute the distance matrix based on t-SNE results
-    distance_matrix <- dist(tsne_data)
-    silhouette_scores <- cluster::silhouette(as.integer(info.norm$pandora_cluster), distance_matrix)
-    if(is.matrix(silhouette_scores)) {
-        # Extract the silhouette widths from the scores
-        silhouette_widths <- silhouette_scores[, "sil_width"]
-        avg_silhouette_score <- mean(silhouette_widths, na.rm = TRUE)
+    avg_silhouette_score <- NA_real_
+    if (length(unique(info.norm$pandora_cluster)) > 1) {
+        distance_matrix <- stats::dist(tsne_data)
+        silhouette_scores <- tryCatch(
+            cluster::silhouette(as.integer(info.norm$pandora_cluster), distance_matrix),
+            error = function(e) NULL
+        )
+        if (!is.null(silhouette_scores) && is.matrix(silhouette_scores)) {
+            silhouette_widths <- silhouette_scores[, "sil_width"]
+            avg_silhouette_score <- mean(silhouette_widths, na.rm = TRUE)
+        }
     }
 
     # Compute cluster centers based on final clustering results
@@ -787,83 +801,72 @@ cluster_tsne_density <- function(info.norm, tsne.norm, settings){
 #'
 #' This function automates the process of building machine learning models using the caret package. 
 #' It supports both binary and multi-class classification and allows users to specify a list of 
-#' machine learning algorithms to be trained on the dataset. The function splits the dataset into 
-#' training and testing sets, applies preprocessing steps, and trains models using cross-validation.
-#' It computes relevant performance metrics such as confusion matrix, AUROC (for binary classification), 
-#' and prAUC (for binary classification).
+#' machine learning algorithms to be trained on the dataset.
+#'
+#' To prevent data leakage, the dataset is partitioned into training and testing sets *before* any
+#' preprocessing is performed. Transformation parameters (imputation, centering, scaling, filtering)
+#' are learned exclusively from the training partition and applied without leakage to the test set.
 #'
 #' @param dataset_ml A data frame containing the dataset for training. All columns except the outcome 
-#'   column should contain the features.
+#'   column (and any specified in `settings$excludedColumns`) should contain the features.
 #' @param settings A list containing the following parameters:
 #'   \itemize{
-#'     \item{\code{outcome}}: A string specifying the name of the outcome column in \code{dataset_ml}. Defaults to "immunaut" if not provided.
-#'     \item{\code{excludedColumns}}: A vector of column names to be excluded from the training data. Defaults to \code{NULL}.
-#'     \item{\code{preProcessDataset}}: A vector of preprocessing steps to be applied (e.g., \code{c("center", "scale", "medianImpute")}). Defaults to \code{NULL}.
-#'     \item{\code{selectedPartitionSplit}}: A numeric value specifying the proportion of data to be used for training. Must be between 0 and 1. Defaults to 0.7.
-#'     \item{\code{selectedPackages}}: A character vector specifying the machine learning algorithms to be used for training (e.g., \code{"nb"}, \code{"rpart"}). Defaults to \code{c("nb", "rpart")}.
+#'     \item{\code{outcome}}: A string specifying the name of the outcome column in \code{dataset_ml}. Defaults to \code{"immunaut"}.
+#'     \item{\code{models}} or {\code{selectedPackages}}: A character vector specifying the machine learning algorithms to train (e.g., \code{"rpart"}, \code{"rf"}). Defaults to \code{c("nb", "rpart")}.
+#'     \item{\code{trainTestRatio}} or {\code{selectedPartitionSplit}}: A numeric value specifying the proportion of data for training (between 0 and 1). Defaults to \code{0.7}.
+#'     \item{\code{excludedColumns}}: A character vector of column names to be excluded from feature predictors. Defaults to \code{NULL}.
+#'     \item{\code{preProcessDataset}}: A character vector of preprocessing transformations (e.g., \code{c("medianImpute", "center", "scale", "zv")}). Defaults to \code{NULL}.
+#'     \item{\code{num_cores}}: Integer. The number of CPU cores to use for parallel training. Defaults to 2 (or 1 during CRAN check environments).
+#'     \item{\code{kFold}}: Integer. The number of cross-validation folds. Defaults to 5.
+#'     \item{\code{kFoldRepeat}}: Integer. The number of cross-validation repeats. Defaults to 1.
+#'     \item{\code{trainingTimeout}}: Numeric. Timeout in seconds for training each individual model. Defaults to 180.
 #'   }
 #'
 #' @details
-#' The function performs preprocessing (e.g., centering, scaling, and imputation of missing values) on the dataset based on the provided settings. 
-#' It splits the data into training and testing sets using the specified partition, trains models using cross-validation, and computes performance metrics.
+#' The function partitions the data into training and testing sets prior to applying preprocessing,
+#' guaranteeing strict isolation between train and test distributions. 
+#' Models are trained using repeated cross-validation via \code{caret::train()}.
 #' 
-#' For binary classification problems, the function calculates AUROC and prAUC. For multi-class classification, it calculates macro-averaged AUROC, though prAUC is not used.
-#' 
-#' The function returns a list of trained models along with their performance metrics, including confusion matrix, variable importance, and post-resample metrics.
+#' For binary classification, AUROC and PR-AUC are calculated. For multi-class classification,
+#' macro-averaged AUROC, weighted AUROC, and macro-averaged F1 scores are computed from the test partition.
 #'
-#' @return A list where each element corresponds to a trained model for one of the algorithms specified in 
-#'   \code{settings$selectedPackages}. Each element contains:
+#' @return A list containing:
 #'   \itemize{
-#'     \item{\code{info}}: General information about the model, including resampling indices, problem type, 
-#'         and outcome mapping.
-#'     \item{\code{training}}: The trained model object and variable importance.
-#'     \item{\code{predictions}}: Predictions on the test set, including probabilities, confusion matrix, 
-#'         post-resample statistics, AUROC (for binary classification), and prAUC (for binary classification).
+#'     \item{\code{models}}: A list where each element corresponds to a trained model. Contains \code{info}, \code{training}, and \code{predictions}.
+#'     \item{\code{dataset}}: The combined preprocessed dataset.
+#'     \item{\code{trainData}}: The preprocessed training dataset.
+#'     \item{\code{testData}}: The preprocessed test dataset.
+#'     \item{\code{is_binary_classification}}: Logical indicating whether the problem is binary classification.
+#'     \item{\code{preProcessParams}}: The preprocessing parameter object(s) fitted on the training dataset.
 #'   }
 #'
 #' @importFrom caret train createDataPartition trainControl confusionMatrix varImp postResample
 #' @importFrom pROC roc auc
 #' @importFrom PRROC pr.curve
+#' @importFrom MLmetrics MultiLogLoss
 #' @importFrom stats as.formula
 #' @importFrom R.utils withTimeout
 #' @importFrom parallel detectCores makePSOCKcluster stopCluster
 #' @importFrom doParallel registerDoParallel
 #'
 #' @examples
-#' \dontrun{
-#' dataset <- read.csv("fc_wo_noise.csv", header = TRUE, row.names = 1)
+#' \donttest{
+#' # Generate demo dataset and run clustering pipeline
+#' demo_data <- generate_demo_data(n_subjects = 80, n_features = 8, desired_number_clusters = 3)
+#' settings <- list(preProcessDataset = c("medianImpute", "center", "scale"))
+#' result <- immunaut(demo_data, settings)
 #' 
-#' # Generate a file header for the dataset to use in downstream analysis
-#' file_header <- generate_file_header(dataset)
-#' 
-#' settings <- list(
-#'     fileHeader = file_header,
-#'     # Columns selected for analysis
-#'     selectedColumns = c("ExampleColumn1", "ExampleColumn2"), 
-#'     clusterType = "Louvain",
-#'     removeNA = TRUE,
-#'     preProcessDataset = c("scale", "center", "medianImpute", "corr", "zv", "nzv"),
-#'     target_clusters_range = c(3,4),
-#'     resolution_increments = c(0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5),
-#'     min_modularities = c(0.4, 0.5, 0.6, 0.7, 0.8, 0.85, 0.9),
-#'     pickBestClusterMethod = "Modularity",
-#'     seed = 1337
+#' # Train automated machine learning model on clustered cohort
+#' ml_settings <- list(
+#'     outcome = "immunaut",
+#'     models = c("rpart"),
+#'     excludedColumns = c("outcome", "age", "gender"),
+#'     preProcessDataset = c("medianImpute", "center", "scale"),
+#'     trainTestRatio = 0.7,
+#'     num_cores = 1
 #' )
-#' 
-#' result <- immunaut(dataset, settings)
-#' dataset_ml <- result$dataset$original
-#' dataset_ml$pandora_cluster <- tsne_clust[[i]]$info.norm$pandora_cluster
-#' dataset_ml <- dplyr::rename(dataset_ml, immunaut = pandora_cluster)
-#' dataset_ml <- dataset_ml[, c("immunaut", setdiff(names(dataset_ml), "immunaut"))]
-#' settings_ml <- list(
-#'     excludedColumns = c("ExampleColumn0"),
-#'     preProcessDataset = c("scale", "center", "medianImpute", "corr", "zv", "nzv"),
-#'     selectedPartitionSplit = split,  # Use the current partition split
-#'     selectedPackages = c("rf", "RRF", "RRFglobal", "rpart2", "c5.0", "sparseLDA", 
-#'     "gcvEarth", "cforest", "gaussPRPoly", "monmlp", "slda", "spls"),
-#'     trainingTimeout = 180  # Timeout 3 minutes
-#' )
-#' ml_results <- auto_simon_ml(dataset_ml, settings_ml)
+#' ml_results <- auto_simon_ml(result$dataset$dataset_ml, ml_settings)
+#' print(names(ml_results$models))
 #' }
 #'
 #' @export
@@ -891,10 +894,30 @@ auto_simon_ml <- function(dataset_ml, settings) {
         settings$preProcessDataset = NULL
     }
     if (is_var_empty(settings$selectedPartitionSplit) == TRUE) {
-        settings$selectedPartitionSplit = 0.7
+        if (!is_var_empty(settings$trainTestRatio)) {
+            settings$selectedPartitionSplit <- settings$trainTestRatio
+        } else {
+            settings$selectedPartitionSplit <- 0.7
+        }
     }
     if (is_var_empty(settings$selectedPackages) == TRUE) {
-        settings$selectedPackages = c("nb", "rpart")
+        if (!is_var_empty(settings$models)) {
+            settings$selectedPackages <- settings$models
+        } else {
+            settings$selectedPackages <- c("nb", "rpart")
+        }
+    }
+
+    if (is_var_empty(settings$num_cores) == TRUE) {
+        chk_limit <- Sys.getenv("_R_CHECK_LIMIT_CORES_", "")
+        if (nzchar(chk_limit)) {
+            settings$num_cores <- min(as.integer(chk_limit), 2L)
+        } else {
+            settings$num_cores <- max(1L, parallel::detectCores(logical = TRUE) - 1L)
+        }
+    }
+    if (nzchar(Sys.getenv("_R_CHECK_LIMIT_CORES_"))) {
+        settings$num_cores <- min(settings$num_cores, 2L)
     }
     
     ## If the outcome column is not found, return an error
@@ -905,16 +928,18 @@ auto_simon_ml <- function(dataset_ml, settings) {
             "not found in the dataset."
         ))
     }
-    ##  Exclude columns from the dataset if specified
+    ## Exclude columns from the dataset if specified
     if (!is.null(settings$selectedColumns)) {
-        message(paste("Selected columns: ", paste(c(settings$outcome, settings$selectedColumns), collapse = ", ")))
-        dataset_ml <- dataset_ml[, c(settings$outcome, settings$selectedColumns)]
+        selected_cols <- unique(c(settings$outcome, intersect(settings$selectedColumns, colnames(dataset_ml))))
+        message(paste("Selected columns: ", paste(selected_cols, collapse = ", ")))
+        dataset_ml <- dataset_ml[, selected_cols, drop = FALSE]
     }
 
-    ##  Exclude columns from the dataset if specified
+    ## Exclude columns from the dataset if specified (preserving outcome column)
     if (!is.null(settings$excludedColumns)) {
-        message(paste("Excluding columns: ", paste(settings$excludedColumns, collapse = ", ")))
-        dataset_ml <- dataset_ml[, !colnames(dataset_ml) %in% settings$excludedColumns]
+        cols_to_remove <- setdiff(settings$excludedColumns, settings$outcome)
+        message(paste("Excluding columns: ", paste(cols_to_remove, collapse = ", ")))
+        dataset_ml <- dataset_ml[, !colnames(dataset_ml) %in% cols_to_remove, drop = FALSE]
     }
     
     ## If no packages are selected, return an error
@@ -928,61 +953,66 @@ auto_simon_ml <- function(dataset_ml, settings) {
         stop("Invalid partition split value. Please choose a value between 0 and 1.")
     }
 
-    # Preprocess dataset
-    if (!is.null(settings$preProcessDataset)) {
-        preProcessMapping <- preProcessResample(dataset_ml, settings$preProcessDataset, settings$outcome, settings$outcome, settings)
-        dataset_ml <- preProcessMapping$datasetData
-
-    }else if (is.null(settings$preProcessDataset) && anyNA(dataset_ml)) {
-        message("No preprocessing steps specified, but missing values detected. Applying default median imputation.")
-        # Apply default preprocessing (median imputation for NAs, and optionally scaling/centering)
-        preProcessMapping <- preProcessResample(dataset_ml, 
-                                                c("medianImpute", "scale", "center"), 
-                                                settings$outcome, 
-                                                c(settings$outcome, settings$excludedColumns), settings)
-        dataset_ml <- preProcessMapping$datasetData
+    # Ensure outcome is a factor for classification and ensure valid R variable names for levels
+    if (!is.factor(dataset_ml[[settings$outcome]])) {
+        dataset_ml[[settings$outcome]] <- as.factor(dataset_ml[[settings$outcome]])
     }
-
-    ## Make sure outcome levels are valid
     levels(dataset_ml[[settings$outcome]]) <- make.names(levels(dataset_ml[[settings$outcome]]))
-
-
-    # Create an empty list to store model results
-    model_list <- list()
-    
-    # Prepare data
     outcome_col <- dataset_ml[[settings$outcome]]
-    
-    # Encode outcome to factor for classification and apply make.names to the levels
-    if (!is.factor(outcome_col)) {
-        outcome_col <- as.factor(outcome_col)
-    }
-    
-    # Ensure factor levels are valid R variable names
-    levels(outcome_col) <- make.names(levels(outcome_col))
 
-
-    message(paste0("===> INFO: Unique outcome levels: ", paste(levels(dataset_ml[[settings$outcome]]), collapse = ", ")))
-    message(paste0("===> INFO: Dataset columns after preprocessing: ", paste(colnames(dataset_ml), collapse = ", ")))
-    
-    # Split the data into training and testing sets
-    trainIndex <-
-        caret::createDataPartition(outcome_col,
-                                   p = settings$selectedPartitionSplit,
-                                   list = FALSE)
-    trainData <- dataset_ml[trainIndex,]
-    testData <- dataset_ml[-trainIndex,]
-    
     # Determine if the problem is binary or multi-class classification
     is_binary_classification <- length(unique(outcome_col)) == 2
 
     message(paste("===> INFO: Problem type:", ifelse(is_binary_classification, "Binary Classification", "Multi-Class Classification")))
-    
+    message(paste0("===> INFO: Unique outcome levels: ", paste(levels(outcome_col), collapse = ", ")))
 
-    num_cores <- parallel::detectCores(logical = TRUE)
-    cl <- parallel::makePSOCKcluster(num_cores-1)
+    # Split the data into training and testing sets BEFORE preprocessing to prevent data leakage
+    trainIndex <-
+        caret::createDataPartition(outcome_col,
+                                   p = settings$selectedPartitionSplit,
+                                   list = FALSE)
+    trainData <- dataset_ml[trainIndex, , drop = FALSE]
+    testData <- dataset_ml[-trainIndex, , drop = FALSE]
+
+    # Preprocess dataset: fit parameters strictly on trainData, then transform both trainData and testData
+    preProcessMapping <- NULL
+    preprocessed_flag <- FALSE
+
+    if (!is.null(settings$preProcessDataset)) {
+        preProcessMapping <- preProcessResample(
+            datasetData = trainData,
+            preProcess = settings$preProcessDataset,
+            selectedOutcomeColumns = settings$outcome,
+            outcome_and_classes = settings$outcome,
+            settings = settings,
+            testData = testData
+        )
+        trainData <- preProcessMapping$datasetData
+        testData  <- preProcessMapping$testData
+        preprocessed_flag <- TRUE
+    } else if (is.null(settings$preProcessDataset) && (anyNA(trainData) || anyNA(testData))) {
+        message("No preprocessing steps specified, but missing values detected. Applying default median imputation.")
+        preProcessMapping <- preProcessResample(
+            datasetData = trainData,
+            preProcess = c("medianImpute", "scale", "center"),
+            selectedOutcomeColumns = settings$outcome,
+            outcome_and_classes = settings$outcome,
+            settings = settings,
+            testData = testData
+        )
+        trainData <- preProcessMapping$datasetData
+        testData  <- preProcessMapping$testData
+        preprocessed_flag <- TRUE
+    }
+
+    message(paste0("===> INFO: Dataset columns after preprocessing: ", paste(colnames(trainData), collapse = ", ")))
+
+    # Create an empty list to store model results
+    model_list <- list()
+
+    cl <- parallel::makePSOCKcluster(settings$num_cores)
     doParallel::registerDoParallel(cl)
-    on.exit(parallel::stopCluster(cl)) 
+    on.exit(try(parallel::stopCluster(cl), silent = TRUE), add = TRUE) 
 
     # Iterate through each model in selectedPackages for training and evaluation
     for (model_name in settings$selectedPackages) {
@@ -1004,15 +1034,19 @@ auto_simon_ml <- function(dataset_ml, settings) {
                         caret::multiClassSummary
                 )
                 
-                # Train the model with specified formula, data, method, and control
-                trained_model <- caret::train(
-                    as.formula(paste(settings$outcome, "~ .")),
+                # Train the model with specified formula, data, method, and control.
+                # If preProcessResample was already applied, do not duplicate centering/scaling in train.
+                train_args <- list(
+                    form = as.formula(paste(settings$outcome, "~ .")),
                     data = trainData,
                     method = model_name,
                     trControl = train_control,
-                    metric = "ROC",  # Use ROC as a performance metric
-                    preProcess = c("center", "scale")  # Standardize data
+                    metric = "ROC"
                 )
+                if (!preprocessed_flag) {
+                    train_args$preProcess <- c("center", "scale")
+                }
+                trained_model <- do.call(caret::train, train_args)
                 
                 # Generate predictions on test data
                 predictions <- predict(trained_model, newdata = testData)
@@ -1052,10 +1086,12 @@ auto_simon_ml <- function(dataset_ml, settings) {
                     }), na.rm = TRUE)
                     
                     # Calculate macro-averaged F1 score
-                    f1_scores <- sapply(levels(testData[[settings$outcome]]), function(class) {
-                        caret::confusionMatrix(predictions, testData[[settings$outcome]], mode = "prec_recall")$byClass["F1"]
-                    })
-                    macro_f1 <- mean(f1_scores, na.rm = TRUE)
+                    cm_prec_recall <- caret::confusionMatrix(predictions, testData[[settings$outcome]], mode = "prec_recall")
+                    if (is.matrix(cm_prec_recall$byClass)) {
+                        macro_f1 <- mean(cm_prec_recall$byClass[, "F1"], na.rm = TRUE)
+                    } else {
+                        macro_f1 <- unname(cm_prec_recall$byClass["F1"])
+                    }
                 }
                 
                 # Store model details and metrics in the model list
@@ -1092,9 +1128,17 @@ auto_simon_ml <- function(dataset_ml, settings) {
         })
     }
 
+    dataset_processed <- rbind(trainData, testData)
     
     # Return the list of models with details
-    return(list(models = model_list, dataset = dataset_ml, trainData = trainData, testData = testData, is_binary_classification = is_binary_classification))
+    return(list(
+        models = model_list,
+        dataset = dataset_processed,
+        trainData = trainData,
+        testData = testData,
+        is_binary_classification = is_binary_classification,
+        preProcessParams = if (!is.null(preProcessMapping)) preProcessMapping$preprocessParams else NULL
+    ))
 }
 
 #' Select the Best Clustering Based on Weighted Scores: AUROC, Modularity, and Silhouette
@@ -1257,7 +1301,7 @@ pick_best_cluster_modularity <- function(tsne_clust) {
     for (i in seq_along(tsne_clust)) {
         modularity <- tsne_clust[[i]]$modularity
         
-        if (!is.null(modularity) && modularity > best_modularity) {
+        if (!is.null(modularity) && !is.na(modularity) && modularity > best_modularity) {
             best_modularity <- modularity
             best_cluster <- tsne_clust[[i]]
         }
@@ -1300,7 +1344,7 @@ pick_best_cluster_silhouette <- function(tsne_clust) {
     for (i in seq_along(tsne_clust)) {
         silhouette <- tsne_clust[[i]]$avg_silhouette_score
         
-        if (!is.null(silhouette) && silhouette > best_silhouette) {
+        if (!is.null(silhouette) && !is.na(silhouette) && silhouette > best_silhouette) {
             best_silhouette <- silhouette
             best_cluster <- tsne_clust[[i]]
         }
@@ -1310,7 +1354,7 @@ pick_best_cluster_silhouette <- function(tsne_clust) {
         stop("No valid clusters found.")
     }
     
-    message(paste("Best cluster selected with silhouette score:", best_silhouette, " Clusters: ", best_cluster$num_clusters))
+    message(paste("===> INFO: Best cluster selected with silhouette score:", best_silhouette, " Clusters: ", best_cluster$num_clusters))
     return(best_cluster)
 }
 
@@ -1344,76 +1388,83 @@ pick_best_cluster_silhouette <- function(tsne_clust) {
 #'
 #' @keywords internal
 pick_best_cluster_overall <- function(tsne_clust, tsne_calc) {
-   if (length(tsne_clust) == 0) {
+    if (length(tsne_clust) == 0) {
         stop("The tsne_clust list is empty.")
     }
-    
-    # Initialize a list to store scores for each clustering result
-    score_list <- lapply(tsne_clust, function(clust) {
-        # Ensure modularity and silhouette are numeric
-        modularity <- as.numeric(clust$modularity)
-        silhouette <- as.numeric(clust$avg_silhouette_score)
-        
-        # Convert cluster labels (pandora_cluster) to numeric if needed
-        cluster_labels <- as.numeric(as.factor(clust$info.norm$pandora_cluster)) 
-        
-        # Calculate Davies-Bouldin Index (lower is better)
-        dbi <- tryCatch({
-            as.numeric(index.DB(tsne_calc$info.norm, cluster_labels)$DB)
-        }, error = function(e) NA)  # Handle error in DB index calculation
-        
-        # Calculate Calinski-Harabasz Index (higher is better)
-        ch_index <- tryCatch({
-            as.numeric(cluster.stats(d = dist(tsne_calc$info.norm), cluster_labels)$ch)
-        }, error = function(e) NA)  # Handle error in CH index calculation
-        
-        # Return a list with all scores
-        list(modularity = modularity, 
-             silhouette = silhouette, 
-             dbi = dbi, 
-             ch_index = ch_index)
-    })
-    
-    # Remove any NULL or missing values from the score_list
-    score_list <- Filter(function(x) {
-        !is.null(x$modularity) && !is.null(x$silhouette) && !is.na(x$modularity) && !is.na(x$silhouette)
-    }, score_list)
-    
-    # Check if there are any valid scores to evaluate
-    if (length(score_list) == 0) {
-        stop("No valid clustering results with all necessary metrics.")
+    if (length(tsne_clust) == 1) {
+        return(tsne_clust[[1]])
     }
     
-    # Debugging message: show score list length
-    message("Valid score list calculated: ", length(score_list), " valid results")
-    
-    # Normalize and combine the scores for each clustering result
-    combined_scores <- sapply(score_list, function(x) {
-        if (any(is.na(c(x$modularity, x$silhouette, x$dbi, x$ch_index)))) {
-            return(NA)  # Skip if any score is NA
-        }
-        mean(c(normalize(as.numeric(x$modularity)), 
-               normalize(as.numeric(x$silhouette)), 
-               1 - normalize(as.numeric(x$dbi)),  # Inverse DBI since lower is better
-               normalize(as.numeric(x$ch_index))))
+    # Extract coordinates to use for DBI and CH calculation
+    tsne_coords <- if (!is.null(tsne_calc$tsne.norm$Y)) {
+        as.matrix(tsne_calc$tsne.norm$Y)
+    } else if (all(c("tsne1", "tsne2") %in% names(tsne_calc$info.norm))) {
+        as.matrix(tsne_calc$info.norm[, c("tsne1", "tsne2")])
+    } else {
+        as.matrix(tsne_calc$info.norm[, sapply(tsne_calc$info.norm, is.numeric), drop = FALSE])
+    }
+    dist_matrix <- stats::dist(tsne_coords)
+
+    # Compute raw metric vectors across all candidate clusters
+    modularity_vec <- sapply(tsne_clust, function(clust) {
+        val <- as.numeric(clust$modularity)
+        if (length(val) == 0 || is.na(val)) NA_real_ else val
     })
     
-    # Debugging message: show combined scores
-    message("Combined scores: ", paste(combined_scores, collapse = ", "))
+    silhouette_vec <- sapply(tsne_clust, function(clust) {
+        val <- as.numeric(clust$avg_silhouette_score)
+        if (length(val) == 0 || is.na(val)) NA_real_ else val
+    })
     
-    # Check if combined_scores is empty or contains only NAs
+    dbi_vec <- sapply(tsne_clust, function(clust) {
+        tryCatch({
+            labels <- as.numeric(as.factor(clust$info.norm$pandora_cluster))
+            if (length(unique(labels)) < 2) return(NA_real_)
+            as.numeric(clusterSim::index.DB(tsne_coords, labels)$DB)
+        }, error = function(e) NA_real_)
+    })
+    
+    ch_vec <- sapply(tsne_clust, function(clust) {
+        tryCatch({
+            labels <- as.numeric(as.factor(clust$info.norm$pandora_cluster))
+            if (length(unique(labels)) < 2) return(NA_real_)
+            as.numeric(fpc::cluster.stats(d = dist_matrix, labels)$ch)
+        }, error = function(e) NA_real_)
+    })
+
+    # Normalize vectors across all candidates (higher is better; for DBI lower is better)
+    norm_modularity <- normalize(modularity_vec)
+    norm_silhouette <- normalize(silhouette_vec)
+    norm_dbi <- 1 - normalize(dbi_vec)
+    norm_ch <- normalize(ch_vec)
+
+    # Compute combined score for each candidate preserving 1-to-1 index alignment
+    combined_scores <- sapply(seq_along(tsne_clust), function(i) {
+        scores <- c(norm_modularity[i], norm_silhouette[i], norm_dbi[i], norm_ch[i])
+        valid_scores <- scores[!is.na(scores)]
+        if (length(valid_scores) == 0) return(NA_real_)
+        mean(valid_scores)
+    })
+    
+    message("Combined scores: ", paste(round(combined_scores, 4), collapse = ", "))
+    
     if (all(is.na(combined_scores))) {
-        stop("No valid combined scores found.")
+        valid_idx <- which(!is.na(silhouette_vec))
+        if (length(valid_idx) > 0) {
+            best_index <- valid_idx[which.max(silhouette_vec[valid_idx])]
+        } else {
+            best_index <- 1
+        }
+    } else {
+        best_index <- which.max(combined_scores)
     }
     
-    # Find the index of the clustering result with the highest combined score
-    best_index <- which.max(combined_scores)
-    
-    # Check if best_index is valid
     if (length(best_index) == 0 || is.na(best_index)) {
-        stop("Unable to find the best clustering result (no valid index found).")
+        best_index <- 1
     }
     
-    # Return the best clustering result
+    message(paste("===> INFO: Best cluster selected by Overall score:", round(combined_scores[best_index], 4), 
+                  " Clusters:", tsne_clust[[best_index]]$num_clusters))
+
     return(tsne_clust[[best_index]])
 }

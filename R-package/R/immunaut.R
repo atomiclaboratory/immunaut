@@ -49,7 +49,7 @@
 #'   \item{resolution_increments}{Numeric vector. The resolution increments to be used for Louvain clustering. Defaults to \code{c(0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5)}.}
 #'   \item{min_modularities}{Numeric vector. The minimum modularities to test for clustering. Defaults to \code{c(0.4, 0.5, 0.6, 0.7, 0.8, 0.85, 0.9)}.}
 #'   \item{target_clusters_range}{Numeric vector. The range of acceptable clusters to identify. Defaults to \code{c(3, 6)}.}
-#'   \item{pickBestClusterMethod}{Character. The method to use for picking the best clustering result ("Modularity", "Silhouette", or "SIMON"). Defaults to "Modularity".}
+#'   \item{pickBestClusterMethod}{Character. The method to use for picking the best clustering result: \code{"Overall"} (multi-metric composite score of normalized modularity, silhouette, Davies-Bouldin, and Calinski-Harabasz indices), \code{"Modularity"}, \code{"Silhouette"}, or \code{"SIMON"}. Defaults to \code{"Modularity"}.}
 #'   \item{weights}{List. Weights for evaluating clusters based on \code{AUROC}, \code{modularity}, and \code{silhouette}. Defaults to \code{list(AUROC = 0.5, modularity = 0.3, silhouette = 0.2)}. These weights are applied to help choose the most relevant clusters based on user goals:
 #'   \describe{
 #'     \item{\code{AUROC}}{Weight for predictive performance (area under the receiver operating characteristic curve). Prioritize this when predictive accuracy is the main goal. For predictive analysis, a recommended configuration could be \code{list(AUROC = 0.8, modularity = 0.1, silhouette = 0.1)}.}
@@ -66,9 +66,9 @@
 #'
 #' @return A list containing the following:
 #' \itemize{
-#'   \item \code{tsne_calc}: The t-SNE results object.
-#'   \item \code{tsne_clust}: The clustering results.
-#'   \item \code{dataset}: A list containing the original dataset, the preprocessed dataset, and a dataset with machine learning-ready data.
+#'   \item \code{tsne_calc}: The t-SNE results object (coordinates, PCA variances, perplexity).
+#'   \item \code{tsne_clust}: The clustering results (centroids, cluster sizes, silhouette scores, modularity).
+#'   \item \code{dataset}: A list containing the original dataset (\code{original}), the preprocessed dataset (\code{preprocessed}), and the machine learning-ready dataset (\code{dataset_ml}) with the \code{immunaut} outcome column attached.
 #'   \item \code{clusters}: The final cluster assignments.
 #'   \item \code{settings}: The list of settings used for the analysis.
 #' }
@@ -88,32 +88,32 @@ immunaut <- function(dataset, settings = list()){
 
     # Check if dataset is empty
     if(is_var_empty(dataset) == TRUE){
-        print("Dataset is empty")
-        return(NULL)
-    }
-
-    # Check if settings is empty
-    if(is_var_empty(settings) == TRUE){
-        print("Settings is empty")
+        message("Dataset is empty")
         return(NULL)
     }
 
     # Check if dataset is a data.frame
     if(is.data.frame(dataset) == FALSE){
-        print("Dataset is not a data.frame")
+        message("Dataset is not a data.frame")
         return(NULL)
+    }
+
+    # Ensure settings is an initialized list
+    if (is.null(settings) || is_var_empty(settings)) {
+        settings <- list()
     }
 
     # Check if settings is a list
-    if(is.list(settings) == FALSE){
-        print("Settings is not a data.frame")
-        return(NULL)
+    if (!is.list(settings)) {
+        stop("settings must be a list.")
     }
 
-    # Check if settings is a data.frame
-    if(is.data.frame(settings$fileHeader) == FALSE){
-        print("settings$fileHeader is not a data.frame! Please use 'immunaut::generate_file_header' function.")
-        return(NULL)
+    # Automatically generate fileHeader if not provided
+    if (is.null(settings$fileHeader)) {
+        settings$fileHeader <- generate_file_header(dataset)
+    } else if (!is.data.frame(settings$fileHeader)) {
+        warning("settings$fileHeader is not a data.frame; generating automatically.")
+        settings$fileHeader <- generate_file_header(dataset)
     }
 
     if(is_var_empty(settings$selectedColumns) == TRUE){
@@ -300,6 +300,10 @@ immunaut <- function(dataset, settings = list()){
         settings$categoricalVariables <- FALSE
     }
 
+    if (is.null(settings$fileHeader)) {
+        settings$fileHeader <- generate_file_header(dataset)
+    }
+
     settings$fileHeader$remapped = as.character(settings$fileHeader$remapped)
     settings$fileHeader$original = as.character(settings$fileHeader$original)
 
@@ -309,35 +313,39 @@ immunaut <- function(dataset, settings = list()){
         settings$groupingVariables <- settings$groupingVariables$remapped
     }
 
-    # If no columns are selected, select by cut of size
-    if(is_null(settings$selectedColumns)) {
-        settings$selectedColumns <- utils::tail(selectedColumns$remapped, n=settings$cutOffColumnSize)
+    # If no columns are selected, default to all columns (or by cutOffColumnSize if provided)
+    if(is.null(settings$selectedColumns) || length(settings$selectedColumns) == 0) {
+        if(!is.null(settings$cutOffColumnSize) && is.numeric(settings$cutOffColumnSize)){
+            settings$selectedColumns <- utils::tail(settings$fileHeader$remapped, n = settings$cutOffColumnSize)
+        } else {
+            settings$selectedColumns <- names(dataset)
+        }
     }
 
-    # Remove grouping variables from selectedColumns and excludedColumns
-    if(!is_null(settings$groupingVariables)) {
-        if(is_null(settings$selectedColumns)) {
+    # Remove grouping variables from selectedColumns, excludedColumns, colorVariables
+    if(!is.null(settings$groupingVariables)) {
+        if(!is.null(settings$selectedColumns)) {
             settings$selectedColumns <-  setdiff(settings$selectedColumns, settings$groupingVariables)
         }
-        if(is_null(settings$excludedColumns)) {
+        if(!is.null(settings$excludedColumns)) {
             settings$excludedColumns <-  setdiff(settings$excludedColumns, settings$groupingVariables)
         }
-        if(is_null(settings$colorVariables)) {
+        if(!is.null(settings$colorVariables)) {
             settings$colorVariables <-  setdiff(settings$colorVariables, settings$groupingVariables)
         }
     }
 
     # Remove any excluded columns from selected columns
-    if(!is_null(settings$excludedColumns)) {
-        ## Remove excluded from selected columns
+    if(!is.null(settings$excludedColumns)) {
         settings$selectedColumns <-  setdiff(settings$selectedColumns, settings$excludedColumns)
-        # settings$selectedColumns <- settings$selectedColumns[settings$selectedColumns %!in% settings$excludedColumns]
     }
 
-
-
 	# 0. Remove any undefined columns from initial dataset
-	dataset_filtered <- dataset[, names(dataset) %in% c(settings$selectedColumns, settings$groupingVariables)]
+	cols_to_keep <- intersect(names(dataset), c(settings$selectedColumns, settings$groupingVariables))
+    if(length(cols_to_keep) == 0) {
+        cols_to_keep <- names(dataset)
+    }
+    dataset_filtered <- dataset[, cols_to_keep, drop = FALSE]
 
 	# 1. Cast all non numeric values to NA
 
@@ -367,10 +375,27 @@ immunaut <- function(dataset, settings = list()){
             settings)
 
        dataset_filtered <- preProcessMapping$datasetData
-   }
+    } else if (anyNA(dataset_filtered) && !isTRUE(settings$removeNA)) {
+        message("===> INFO: No preprocessing specified but missing values detected. Applying default median imputation.")
+        preProcessMapping <- preProcessResample(dataset_filtered,
+            c("medianImpute", "center", "scale"),
+            settings$groupingVariables,
+            settings$groupingVariables,
+            settings)
+        dataset_filtered <- preProcessMapping$datasetData
+    }
 
-	# 3. remove NA is any left
-    if(settings$removeNA == TRUE){
+    # Remove any columns that are entirely NA
+    if (ncol(dataset_filtered) > 0) {
+        all_na_cols <- names(dataset_filtered)[colSums(!is.na(dataset_filtered)) == 0]
+        if (length(all_na_cols) > 0) {
+            message(paste0("===> INFO: Dropping all-NA column(s): ", paste(all_na_cols, collapse = ", ")))
+            dataset_filtered <- dataset_filtered[, !names(dataset_filtered) %in% all_na_cols, drop = FALSE]
+        }
+    }
+
+	# 3. remove NA if any left
+    if(isTRUE(settings$removeNA)){
         message("===> INFO: Removing NA Values")
         dataset_filtered <- na.omit(dataset_filtered)
     }
@@ -463,6 +488,9 @@ immunaut <- function(dataset, settings = list()){
     dataset_with_clusters <- dataset
     if(nrow(dataset_with_clusters) == nrow(tsne_clust$info.norm)){
         dataset_with_clusters$pandora_cluster <- tsne_clust$info.norm$pandora_cluster
+    } else if (!is.null(rownames(dataset_filtered)) && all(rownames(dataset_filtered) %in% rownames(dataset))) {
+        dataset_with_clusters$pandora_cluster <- NA
+        dataset_with_clusters[rownames(dataset_filtered), "pandora_cluster"] <- tsne_clust$info.norm$pandora_cluster
     }
 
     dataset_filtered_with_clusters <- dataset_filtered
@@ -470,14 +498,17 @@ immunaut <- function(dataset, settings = list()){
         dataset_filtered_with_clusters$pandora_cluster <- tsne_clust$info.norm$pandora_cluster
     }
     
-    dataset_ml <- dataset
-    if(nrow(dataset_ml) == nrow(tsne_clust$info.norm)){
-        dataset_ml$pandora_cluster <- tsne_clust$info.norm$pandora_cluster
-        ## Should we remove any outliers, if any detected?
-        dataset_ml <- remove_outliers(dataset_ml, settings)
-        dataset_ml <- dplyr::rename(dataset_ml, immunaut = pandora_cluster)
-        dataset_ml <- dataset_ml[, c("immunaut", setdiff(names(dataset_ml), "immunaut"))]
+    # For dataset_ml, ensure rows match tsne_clust (handles removeNA = TRUE)
+    if (nrow(dataset) == nrow(tsne_clust$info.norm)) {
+        dataset_ml <- dataset
+    } else {
+        dataset_ml <- dataset[rownames(dataset_filtered), , drop = FALSE]
     }
+    dataset_ml$pandora_cluster <- tsne_clust$info.norm$pandora_cluster
+    ## Should we remove any outliers, if any detected?
+    dataset_ml <- remove_outliers(dataset_ml, settings)
+    dataset_ml <- dplyr::rename(dataset_ml, immunaut = pandora_cluster)
+    dataset_ml <- dataset_ml[, c("immunaut", setdiff(names(dataset_ml), "immunaut")), drop = FALSE]
 
     results <- list(
         tsne_calc = tsne_calc,
