@@ -10,7 +10,6 @@ Author: Ivan Tomic [aut, cre, cph] (<https://orcid.org/0000-0003-3596-681X>),
         Stephanie Hao [aut] (<https://orcid.org/0000-0002-3760-8234>)
 Description: Used for analyzing immune responses and predicting vaccine efficacy using machine learning and advanced data processing techniques. 'Immunaut' integrates both unsupervised and supervised learning methods, managing outliers and capturing immune response variability. It performs multiple rounds of predictive model testing to identify robust immunogenicity signatures that can predict vaccine responsiveness. The platform is designed to handle high-dimensional immune data, enabling researchers to uncover immune predictors and refine personalized vaccination strategies across diverse populations.
 Maintainer: Ivan Tomic <info@ivantomic.com>
-Packaged: Ivan Tomic <info@ivantomic.com>
 Imports:
     cluster,
     plyr,
